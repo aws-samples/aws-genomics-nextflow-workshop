@@ -1,0 +1,38 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  (WWPS-GWF-NEXTFLOW-CLOUD9) Creates a Cloud9 environment for developing genomics
+  workflows using Nextflow
+
+Parameters:
+  EnvironmentOwnerIAMType:
+    Type: String
+    AllowedValues:
+      - user
+      - assumed-role
+    Default: user
+  EnvironmentOwnerIAMName:
+    Type: String
+    Description: >-
+      IAM user name or assumed-role name that will be set as the environment owner.
+      Note: This cannot be "*"
+  
+Resources:
+  Cloud9Environment:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties: 
+      Name: genomics-workflows
+      Description: Development environment for building genomics workflows with Nextflow
+      InstanceType: m4.large
+      AutomaticStopTimeMinutes: 30
+      OwnerArn:
+        Fn::Join:
+          - ":"
+          - - !Sub "arn:aws:iam::${AWS::AccountId}"
+            - !Join ["/", [!Ref "EnvironmentOwnerIAMType", !Ref "EnvironmentOwnerIAMName"]]
+      Repositories:
+        # despite the docs saying that this should be a CodeCommit repository
+        # it seems to work with any publically accessible git repository with an HTTPS url
+        - RepositoryUrl: https://github.com/wleepang/demo-genomics-workflows.git
+          PathComponent: genomics-workflows
+...

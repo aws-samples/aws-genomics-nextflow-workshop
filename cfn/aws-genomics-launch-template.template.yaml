@@ -1,0 +1,166 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  (WWPS-GLS-WF-LT) Creates an EC2 Launch Template for AWS Batch based 
+  genomics workflows
+
+Mappings:
+  ScratchMountPointMap: 
+    step-functions:
+      mountpoint: "/scratch"
+    cromwell:
+      mountpoint: "/cromwell_root"
+    nextflow:
+      mountpoint: "/var/lib/docker"
+  TagMap:
+    default:
+      architecture: "genomics-workflows"
+      solution: "default"
+      tags:
+        - Key: "architecture"
+          Value: "genomics-workflows"
+        - Key: "solution"
+          Value: "default"
+  ECSAdditionsMap:
+    step-functions:
+      additions: |-
+        - cd /opt && wget $artifactRootUrl/aws-ebs-autoscale.tgz && tar -xzf aws-ebs-autoscale.tgz
+        - sh /opt/ebs-autoscale/bin/init-ebs-autoscale.sh $scratchPath /dev/sdc  2>&1 > /var/log/init-ebs-autoscale.log
+    cromwell:
+      additions: |-
+        - cd /opt && wget $artifactRootUrl/aws-ebs-autoscale.tgz && tar -xzf aws-ebs-autoscale.tgz
+        - sh /opt/ebs-autoscale/bin/init-ebs-autoscale.sh $scratchPath /dev/sdc  2>&1 > /var/log/init-ebs-autoscale.log
+        - cd /opt && wget $artifactRootUrl/aws-ecs-additions.tgz && tar -xzf aws-ecs-additions.tgz
+        - sh /opt/ecs-additions/ecs-additions-cromwell.sh
+    nextflow:
+      additions: |-
+        - service docker stop
+        - cp -au /var/lib/docker /var/lib/docker.bk  
+        - cd /opt && wget $artifactRootUrl/aws-ebs-autoscale.tgz && tar -xzf aws-ebs-autoscale.tgz
+        - sh /opt/ebs-autoscale/bin/init-ebs-autoscale.sh $scratchPath /dev/sdc  2>&1 > /var/log/init-ebs-autoscale.log
+        - cd /opt && wget $artifactRootUrl/aws-ecs-additions.tgz && tar -xzf aws-ecs-additions.tgz
+        - sh /opt/ecs-additions/ecs-additions-nextflow.sh 
+        - sed -i 's+OPTIONS=.*+OPTIONS="--storage-driver btrfs"+g' /etc/sysconfig/docker-storage
+        - service docker start
+        - start ecs
+Parameters:
+  LaunchTemplateNamePrefix:
+    Type: String
+    Default: genomics-workflow
+    Description: Name of the launch template. This will be made unique using the Stack ID.
+  ScratchVolumeSize:
+    Type: Number
+    Default: 20
+    Description: The initial size of the scratch volume (GB)
+  DockerImageAndMetadataVolumeSize:
+    Type: Number
+    Default: 75
+    Description: The size of the volume Docker will use for image and metadata storage (GB)
+  WorkflowOrchestrator:
+    Type: String
+    Description: The workflow orchestration engine you will use
+    Default: step-functions
+    AllowedValues:
+      - step-functions
+      - cromwell
+      - nextflow
+  ScratchMountPoint:
+    Type: String
+    Default: /scratch
+    Description: >-
+      Path for the scratch mount point in the instance. If your workflow 
+      orchestrator is "Cromwell" the value here is overridden with "/cromwell_root".
+      If your workflow orcheistrator is "Nextflow" the value here is overriden with "/var/lib/docker".
+  ArtifactRootUrl:
+    Type: String
+    Default: https://s3.amazonaws.com/aws-genomics-workflows/artifacts
+    Description: >-
+      Root URL for where artifacts / additions scripts are stored
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Required"
+        Parameters:
+          - WorkflowOrchestrator
+          - LaunchTemplateNamePrefix
+      - Label:
+          default: "Optional"
+        Parameters:
+          - ScratchMountPoint
+          - ScratchVolumeSize
+          - DockerImageAndMetadataVolumeSize
+Conditions:
+  UseCromwell: !Equals [!Ref WorkflowOrchestrator, cromwell]
+  UseNextflow: !Equals [!Ref WorkflowOrchestrator, nextflow]
+  ScratchOverride: !Or [Condition: UseCromwell, Condition: UseNextflow]
+Resources:
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Join ["-", [!Ref LaunchTemplateNamePrefix, !Select [2, !Split ["/", !Ref "AWS::StackId" ]]]]
+      LaunchTemplateData:
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+            - Key: architecture
+              Value: !FindInMap ["TagMap", "default", "architecture"]
+            - Key: solution
+              Value: !Ref WorkflowOrchestrator
+        BlockDeviceMappings:
+          - Ebs:
+              DeleteOnTermination: True
+              VolumeSize: 50
+              VolumeType: gp2 
+            DeviceName: /dev/xvda
+          - Ebs:
+              Encrypted: True
+              DeleteOnTermination: True
+              VolumeSize: !Ref DockerImageAndMetadataVolumeSize
+              VolumeType: gp2 
+            DeviceName: /dev/xvdcz
+          - Ebs:
+              Encrypted: True
+              DeleteOnTermination: True
+              VolumeSize: !Ref ScratchVolumeSize
+              VolumeType: gp2 
+            DeviceName: /dev/sdc
+        UserData:
+          Fn::Base64: !Sub
+            - |
+              MIME-Version: 1.0
+              Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+              --==BOUNDARY==
+              Content-Type: text/cloud-config; charset="us-ascii"
+
+              packages:
+              - jq
+              - btrfs-progs
+              - python27-pip
+              - sed
+              - wget
+
+              runcmd:
+              - pip install -U awscli boto3
+              - scratchPath="${ScratchMountPoint}"
+              - artifactRootUrl="${ArtifactRootUrl}"
+              ${ECSAdditions}
+
+              --==BOUNDARY==--
+            - ECSAdditions:
+                Fn::FindInMap: 
+                  - ECSAdditionsMap
+                  - !Ref WorkflowOrchestrator
+                  - additions
+              ScratchMountPoint: 
+                Fn::If:
+                  - ScratchOverride
+                  - !FindInMap [ ScratchMountPointMap, !Ref WorkflowOrchestrator, mountpoint ]
+                  - !Ref ScratchMountPoint
+
+Outputs:
+  LaunchTemplateId:
+    Description: >-
+      EC2 Launch Template ID to use when creating AWS Batch compute environments
+      for genomics workflows
+    Value: !Ref EC2LaunchTemplate
