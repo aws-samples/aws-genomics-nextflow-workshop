@@ -25,7 +25,6 @@ Metadata:
         Parameters:
           - S3DataBucketName
           - ExistingDataBucket
-          - KeyPairName
       - Label:
           default: "AWS Batch"
         Parameters:
@@ -50,8 +49,6 @@ Metadata:
         default: S3 Nextflow Bucket Name
       ExistingNextflowBucket:
         default: Existing Nextflow Bucket?
-      KeyPairName:
-        default: EC2 Key Pair Name
       SpotBidPercentage:
         default: Spot Bid %
       DefaultCEMinvCpus:
