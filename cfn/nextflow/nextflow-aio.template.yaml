@@ -25,7 +25,6 @@ Metadata:
         Parameters:
           - S3DataBucketName
           - ExistingDataBucket
-          - KeyPairName
       - Label:
           default: "AWS Batch"
         Parameters:
@@ -50,8 +49,6 @@ Metadata:
         default: S3 Nextflow Bucket Name
       ExistingNextflowBucket:
         default: Existing Nextflow Bucket?
-      KeyPairName:
-        default: EC2 Key Pair Name
       SpotBidPercentage:
         default: Spot Bid %
       DefaultCEMinvCpus:
@@ -86,9 +83,6 @@ Parameters:
       - Yes
       - No
     Default: No
-  # KeyPairName:
-  #   Description: (Optional) Key Pair used to 
-  #   Type: AWS::EC2::KeyPair::KeyName
   SpotBidPercentage:
     Description: The percent of on-demand pricing for max bid for Spot intances
     Type: Number
@@ -173,7 +167,6 @@ Resources:
             - - !Sub "${AWS::Region}a"
               - !Sub "${AWS::Region}b"
         NumberOfAZs: "2"
-        # KeyPairName: !Ref KeyPairName
       Tags: !FindInMap ["TagMap", "default", "tags"]
 
   GenomicsWorkflowStack:
@@ -185,7 +178,6 @@ Resources:
         SubnetIds: !Sub "${VpcStack.Outputs.PrivateSubnet1AID}, ${VpcStack.Outputs.PrivateSubnet2AID}"
         S3BucketName: !Ref S3DataBucketName
         ExistingBucket: !Ref ExistingDataBucket
-        # KeyPairName: !Ref 'KeyPairName'
         WorkflowOrchestrator: nextflow
         SpotBidPercentage: !Ref 'SpotBidPercentage'
         DefaultCEMinvCpus: !Ref 'DefaultCEMinvCpus'
