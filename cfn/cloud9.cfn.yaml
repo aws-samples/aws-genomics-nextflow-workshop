@@ -30,9 +30,9 @@ Resources:
           - ":"
           - - !Sub "arn:aws:iam::${AWS::AccountId}"
             - !Join ["/", [!Ref "EnvironmentOwnerIAMType", !Ref "EnvironmentOwnerIAMName"]]
-      Repositories:
-        # despite the docs saying that this should be a CodeCommit repository
-        # it seems to work with any publically accessible git repository with an HTTPS url
-        - RepositoryUrl: https://github.com/wleepang/demo-genomics-workflows.git
-          PathComponent: genomics-workflows
+      # Repositories:
+      #   # despite the docs saying that this should be a CodeCommit repository
+      #   # it seems to work with any publically accessible git repository with an HTTPS url
+      #   - RepositoryUrl: https://github.com/wleepang/demo-genomics-workflows.git
+      #     PathComponent: genomics-workflows
 ...
