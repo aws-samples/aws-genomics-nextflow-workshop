@@ -42,6 +42,20 @@ Resources:
       Roles:
         - Ref: IAMInstanceRole
   
+  CodeCommitRepo:
+    # This CodeCommit repository is for code that workshop participants will
+    # interact with in Code9
+    Type: AWS::CodeCommit::Repository
+    Properties:
+        RepositoryName: nextflow-workshop
+        RepositoryDescription: >-
+          Code for Nextflow on AWS workshop activities in Cloud9
+
+        Code:
+            S3:
+              Bucket: pwyming-demo-templates
+              Key: nextflow-workshop/cloud9.zip
+  
   Cloud9Environment:
     Type: AWS::Cloud9::EnvironmentEC2
     Properties: 
@@ -49,32 +63,18 @@ Resources:
       Description: Development environment for building genomics workflows with Nextflow
       InstanceType: m4.large
       AutomaticStopTimeMinutes: 30
-      # OwnerArn:
-      #   Fn::Join:
-      #     - ":"
-      #     - - !Sub "arn:aws:iam::${AWS::AccountId}"
-      #       - !Join ["/", [!Ref "EnvironmentOwnerIAMType", !Ref "EnvironmentOwnerIAMName"]]
-      # Repositories:
-      #   # despite the docs saying that this should be a CodeCommit repository
-      #   # it seems to work with any publically accessible git repository with an HTTPS url
-      #   - RepositoryUrl: https://github.com/wleepang/demo-genomics-workflows.git
-      #     PathComponent: genomics-workflows
+      Repositories:
+        # despite the docs saying that this should be a CodeCommit repository
+        # it seems to work with any publically accessible git repository with an HTTPS url
+        - RepositoryUrl: !GetAtt CodeCommitRepo.CloneUrlHttp
+          PathComponent: nextflow-workshop
 
 Outputs:
   Cloud9EnvironmentInstance:
     Value: !Join ["-", ["aws-cloud9", !GetAtt Cloud9Environment.Name, !Ref Cloud9Environment]]
     Description: >-
       EC2 Instance for AWS Cloud9 IDE used for workshop
-    
-  # Cloud9EnvironmentOwner:
-  #   Value:
-  #     Fn::Join:
-  #       - ":"
-  #       - - !Sub "arn:aws:iam::${AWS::AccountId}"
-  #         - !Join ["/", [!Ref "EnvironmentOwnerIAMType", !Ref "EnvironmentOwnerIAMName"]]
-  #   Description: >-
-  #     ARN of the owner for the AWS Cloud9 IDE
-      
+        
   IAMInstanceProfile:
     Value: !GetAtt IAMInstanceProfile.Arn
     Description: >-
