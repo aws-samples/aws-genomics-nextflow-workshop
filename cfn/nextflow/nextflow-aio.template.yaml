@@ -217,19 +217,27 @@ Outputs:
     
   NextflowJobDefinition:
     Value: !GetAtt NextflowStack.Outputs.NextflowJobDefinition
+    Export:
+      Name: !Sub "${AWS::StackName}-NextflowJobDefinition"
     Description: >-
       Batch Job Definition that creates a nextflow head node for running workflows
   
   S3NextFlowBucket:
     Value: !GetAtt NextflowStack.Outputs.NextflowBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-NextflowBucket"
     Description: >-
       S3 Bucket used to store Nextflow metadata (session cache, logs, and intermediate results)
   S3NextflowLogsDir:
     Value: !GetAtt NextflowStack.Outputs.LogsDir
+    Export:
+      Name: !Sub "${AWS::StackName}-NextflowLogsDir"
     Description: >-
       S3 URI where nextflow session cache and logs are stored.
   S3NextflowWorkDir:
     Value: !GetAtt NextflowStack.Outputs.WorkDir
+    Export:
+      Name: !Sub "${AWS::StackName}-NextflowWorkDir"
     Description: >-
       S3 URI where workflow intermediate results are stored.
   
@@ -239,14 +247,20 @@ Outputs:
     Value: !GetAtt 'VpcStack.Outputs.VPCID'
   S3DataBucket:
     Value: !GetAtt 'GenomicsWorkflowStack.Outputs.GenomicsEnvS3Bucket'
+    Export:
+      Name: !Sub "${AWS::StackName}-DataBucket"
     Description: >-
       S3 bucket for storing genomics workflow input and output data
   BatchDefaultQueue:
     Value: !GetAtt 'GenomicsWorkflowStack.Outputs.GenomicsEnvDefaultJobQueueArn'
+    Export:
+      Name: !Sub "${AWS::StackName}-DefaultJobQueue"
     Description: >-
       The default AWS Batch job queue for workflow jobs, based on EC2 SPOT instances
   BatchHighPriorityQueue:
     Value: !GetAtt 'GenomicsWorkflowStack.Outputs.GenomicsEnvHighPriorityJobQueueArn'
+    Export:
+      Name: !Sub "${AWS::StackName}-HighPriorityJobQueue"
     Description: >-
       AWS Batch job queue for high priority workflow jobs, based on EC2 On-Demand
       instances
