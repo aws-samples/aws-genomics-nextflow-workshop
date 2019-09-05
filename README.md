@@ -129,11 +129,52 @@ Nextflow installation completed. Please note:
 
 ### Lab 1 - Getting started with Nextflow
 
-Ways to run Nextflow:
+There are a couple key ways to run Nextflow:
 
-*  "locally" (Cloud9 simulates this)
-*  On an EC2 instance for both master process and jobs
-*  "locally" with AWS Batch
-*  On an EC2 instance for master process with AWS Batch for jobs
-*  Containerized with "Batch-Squared" Infrastructure (Advanced)
+*  locally for both the master process and jobs
+*  locally for the master process with AWS Batch for jobs
+*  (Advanced) Containerized with "Batch-Squared" Infrastructure - An AWS Batch job for the master process that creates additional AWS Batch jobs
 
+#### Local master and jobs
+
+You can run Nextflow workflows entire on a single compute instance.  This can either be your local laptop, or a remote server like an EC2 instance.  in this workshop, your AWS Cloud9 Environment can simulate this scenario.
+
+In a bash terminal, type the following:
+
+```bash
+nextflow run hello
+```
+
+This will run Nextflow's built-in "hello world" workflow.
+
+#### Local master and AWS Batch jobs
+
+Genomics and life sciences workflows typically use a variety of tools that each have distinct computing resource requirements, such as high CPU or RAM utilization, or GPU acceleration.
+Sometimes these requirements are beyond what a laptop or a single EC2 instance can provide.  Plus, provisioning a single large instance so that a couple of steps in a workflow can run would be a waste of computing resources.
+
+A more cost effective method is to provision compute resources dynamically, as they are needed for each step of the workflow.
+This is what AWS Batch is good at doing.
+
+AWS Batch and S3 resources were created ahead of time in the event accounts used for this workshop.  If you are running this lab in your own account, use the CloudFormation templates available at the link below to setup your own environment.
+
+[Genomics Workflows on AWS - Nextflow Full Stack](https://docs.opendata.aws/genomics-workflows/orchestration/nextflow/nextflow-overview/#full-stack-deployment)
+
+To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes):
+
+* Determine the "default" queue that was created
+* Determine the S3 Bucket that was created, this will be your nextflow working directory
+* Create a config file
+
+Nextflow config file:
+
+```groovy
+workDir = "s3://${WORK_BUCKET}"
+process.executor = "awsbatch"
+process.queue = "${DEFAULT_JOB_QUEUE}"
+aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
+
+```
+
+#### Batch-Squared
+
+Since the master `nextflow` process needs to be connected to jobs to monitor progress, using a local laptop, or a dedicated EC2 instance for the master `nextflow` process is not ideal for long running workflows.
