@@ -63,6 +63,7 @@ Resources:
       Description: Development environment for building genomics workflows with Nextflow
       InstanceType: m4.large
       AutomaticStopTimeMinutes: 30
+      OwnerArn: !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/TeamRole/MasterKey"
       Repositories:
         # despite the docs saying that this should be a CodeCommit repository
         # it seems to work with any publically accessible git repository with an HTTPS url
