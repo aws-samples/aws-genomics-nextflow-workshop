@@ -1,0 +1,54 @@
+TagSpecifications:
+  - ResourceType: instance
+    Tags:
+    - Key: architecture
+      Value: genomics-workflow
+    - Key: solution
+      Value: nextflow
+BlockDeviceMappings:
+  - Ebs:
+      DeleteOnTermination: True
+      VolumeSize: 50
+      VolumeType: gp2 
+    DeviceName: /dev/xvda
+  - Ebs:
+      Encrypted: True
+      DeleteOnTermination: True
+      VolumeSize: 75
+      VolumeType: gp2 
+    DeviceName: /dev/xvdcz
+  - Ebs:
+      Encrypted: True
+      DeleteOnTermination: True
+      VolumeSize: 20
+      VolumeType: gp2 
+    DeviceName: /dev/sdc
+UserData: |-
+  MIME-Version: 1.0
+  Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+  --==BOUNDARY==
+  Content-Type: text/cloud-config; charset="us-ascii"
+
+  packages:
+  - jq
+  - btrfs-progs
+  - python27-pip
+  - sed
+  - wget
+
+  runcmd:
+  - pip install -U awscli boto3
+  - scratchPath="/var/lib/docker"
+  - artifactRootUrl="https://s3.amazonaws.com/aws-genomics-workflows/artifacts"
+  - service docker stop
+  - cp -au /var/lib/docker /var/lib/docker.bk  
+  - cd /opt && wget $artifactRootUrl/aws-ebs-autoscale.tgz && tar -xzf aws-ebs-autoscale.tgz
+  - sh /opt/ebs-autoscale/bin/init-ebs-autoscale.sh $scratchPath /dev/sdc  2>&1 > /var/log/init-ebs-autoscale.log
+  - cd /opt && wget $artifactRootUrl/aws-ecs-additions.tgz && tar -xzf aws-ecs-additions.tgz
+  - sh /opt/ecs-additions/ecs-additions-nextflow.sh 
+  - sed -i 's+OPTIONS=.*+OPTIONS="--storage-driver btrfs"+g' /etc/sysconfig/docker-storage
+  - service docker start
+  - start ecs
+  
+  --==BOUNDARY==--

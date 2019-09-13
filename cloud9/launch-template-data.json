@@ -1,0 +1,46 @@
+{
+    "TagSpecifications": [
+        {
+            "ResourceType": "instance",
+            "Tags": [
+                {
+                    "Key": "architecture",
+                    "Value": "genomics-workflow"
+                },
+                {
+                    "Key": "solution",
+                    "Value": "nextflow"
+                }
+            ]
+        }
+    ],
+    "BlockDeviceMappings": [
+        {
+            "Ebs": {
+                "DeleteOnTermination": true,
+                "VolumeSize": 50,
+                "VolumeType": "gp2"
+            },
+            "DeviceName": "/dev/xvda"
+        },
+        {
+            "Ebs": {
+                "Encrypted": true,
+                "DeleteOnTermination": true,
+                "VolumeSize": 75,
+                "VolumeType": "gp2"
+            },
+            "DeviceName": "/dev/xvdcz"
+        },
+        {
+            "Ebs": {
+                "Encrypted": true,
+                "DeleteOnTermination": true,
+                "VolumeSize": 20,
+                "VolumeType": "gp2"
+            },
+            "DeviceName": "/dev/sdc"
+        }
+    ],
+    "UserData": "TUlNRS1WZXJzaW9uOiAxLjAKQ29udGVudC1UeXBlOiBtdWx0aXBhcnQvbWl4ZWQ7IGJvdW5kYXJ5PSI9PUJPVU5EQVJZPT0iCgotLT09Qk9VTkRBUlk9PQpDb250ZW50LVR5cGU6IHRleHQvY2xvdWQtY29uZmlnOyBjaGFyc2V0PSJ1cy1hc2NpaSIKCnBhY2thZ2VzOgotIGpxCi0gYnRyZnMtcHJvZ3MKLSBweXRob24yNy1waXAKLSBzZWQKLSB3Z2V0CgpydW5jbWQ6Ci0gcGlwIGluc3RhbGwgLVUgYXdzY2xpIGJvdG8zCi0gc2NyYXRjaFBhdGg9Ii92YXIvbGliL2RvY2tlciIKLSBhcnRpZmFjdFJvb3RVcmw9Imh0dHBzOi8vczMuYW1hem9uYXdzLmNvbS9hd3MtZ2Vub21pY3Mtd29ya2Zsb3dzL2FydGlmYWN0cyIKLSBzZXJ2aWNlIGRvY2tlciBzdG9wCi0gY3AgLWF1IC92YXIvbGliL2RvY2tlciAvdmFyL2xpYi9kb2NrZXIuYmsgIAotIGNkIC9vcHQgJiYgd2dldCAkYXJ0aWZhY3RSb290VXJsL2F3cy1lYnMtYXV0b3NjYWxlLnRneiAmJiB0YXIgLXh6ZiBhd3MtZWJzLWF1dG9zY2FsZS50Z3oKLSBzaCAvb3B0L2Vicy1hdXRvc2NhbGUvYmluL2luaXQtZWJzLWF1dG9zY2FsZS5zaCAkc2NyYXRjaFBhdGggL2Rldi9zZGMgIDI+JjEgPiAvdmFyL2xvZy9pbml0LWVicy1hdXRvc2NhbGUubG9nCi0gY2QgL29wdCAmJiB3Z2V0ICRhcnRpZmFjdFJvb3RVcmwvYXdzLWVjcy1hZGRpdGlvbnMudGd6ICYmIHRhciAteHpmIGF3cy1lY3MtYWRkaXRpb25zLnRnegotIHNoIC9vcHQvZWNzLWFkZGl0aW9ucy9lY3MtYWRkaXRpb25zLW5leHRmbG93LnNoIAotIHNlZCAtaSAncytPUFRJT05TPS4qK09QVElPTlM9Ii0tc3RvcmFnZS1kcml2ZXIgYnRyZnMiK2cnIC9ldGMvc3lzY29uZmlnL2RvY2tlci1zdG9yYWdlCi0gc2VydmljZSBkb2NrZXIgc3RhcnQKLSBzdGFydCBlY3MKCi0tPT1CT1VOREFSWT09LS0="
+}
