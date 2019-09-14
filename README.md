@@ -21,6 +21,13 @@
     - [Local master and jobs](#local-master-and-jobs)
     - [Local master and AWS Batch jobs](#local-master-and-aws-batch-jobs)
     - [Batch-Squared](#batch-squared)
+      - [Containerizing Nextflow](#containerizing-nextflow)
+        - [`Dockerfile`](#dockerfile)
+        - [`nextflow.aws.sh`](#nextflowawssh)
+      - [Batch Job Definition for Nextflow](#batch-job-definition-for-nextflow)
+      - [Submitting a Nextflow workflow](#submitting-a-nextflow-workflow)
+  - [Module 3 - Automation](#module-3---automation)
+  - [Module 4 - Extra Credit - Creating a microservice (advanced)](#module-4---extra-credit---creating-a-microservice-advanced)
 
 ## Overview
 
@@ -143,15 +150,13 @@ Nextflow installation completed. Please note:
 
 This module will cover building the AWS resources you need to run Nextflow on AWS from scratch.
 
-If you are attending an in person workshop, these resources have been created ahead of time in the AWS accounts you were provided.  If you are running this lab in your own account, use the CloudFormation templates available at the link below to setup your own environment.
-
-[Genomics Workflows on AWS - Nextflow Full Stack](https://docs.opendata.aws/genomics-workflows/orchestration/nextflow/nextflow-overview/#full-stack-deployment)
+If you are attending an in person workshop, these resources have been created ahead of time in the AWS accounts you were provided.  During the workshop we'll walk through all the pieces of the architecture at a high level so you know how everything is wired together.
 
 ### S3 Bucket
 
 You'll need an S3 bucket to store both your input data and workflow results.
 S3 is an ideal location to store datasets of the size encountered in genomics, 
-which often equal or exceed 100GB per sample.
+which often equal or exceed 100GB per sample file.
 
 S3 also makes it easy to collaboratively work on such large datasets because buckets
 and the data stored in them are globally available.
@@ -182,22 +187,21 @@ The default options for bucket configuration are sufficient for the purposes of 
 
 ### IAM Roles
 
-IAM is used to contol access to your AWS resources.  This includes access by users and groups in your account, as well as access by AWS services operating on your behalf.
+IAM is used to control access to your AWS resources.  This includes access by users and groups in your account, as well as access by AWS services operating on your behalf.
 
 Services use IAM Roles which provide temporary access to AWS resources when needed.
 
-**IMPORTANT**:
+> **IMPORTANT**
+> 
 > You need to have Administrative access to your AWS account to create IAM roles.
 >
-> The recommended way to do this is to create a user and add that user to a group
+> A recommended way to do this is to create a user and add that user to a group
 > with the `AdministratorAccess` managed policy attached.  This makes it easier to 
 > revoke these privileges if necessary.
 
 #### Create a Batch Service Role
 
 This is a role used by AWS Batch to launch EC2 instances on your behalf.
-
-This can be done in the AWS Console.
 
 * Go to the IAM Console
 * Click on "Roles"
@@ -219,8 +223,6 @@ In Attached permissions policies, the "AWSBatchServiceRole" will already be atta
 This is a role that controls what AWS Resources EC2 instances launched by AWS Batch have access to.
 In this case, you will limit S3 access to just the bucket you created earlier.
 
-This can be done in the AWS Console
-
 * Go to the IAM Console
 * Click on "Roles"
 * Click on "Create role"
@@ -239,8 +241,6 @@ This can be done in the AWS Console
 #### Create an EC2 SpotFleet Role
 
 This is a role that allows creation and launch of Spot fleets - Spot instances with similar compute capabilities (i.e. vCPUs and RAM).  This is for using Spot instances when running jobs in AWS Batch.
-
-This can be done in the AWS Console
 
 * Go to the IAM Console
 * Click on "Roles"
@@ -322,7 +322,7 @@ The above template will create an instance with three attached EBS volumes.
 * `/dev/xvdcz`: will be used for the docker metadata volume
 * `/dev/sdc`: will be the initial volume use for scratch space (more on this below)
 
- The `UserData` value is the `base64` encoded version of the following:
+The `UserData` value is the `base64` encoded version of the following:
 
 ```yaml
 MIME-Version: 1.0
@@ -361,6 +361,8 @@ In this case, the mount point for auto expanding EBS volumes is set to `/var/lib
 
 The above is used to handle the unpredictable sizes of data files encountered in genomics workflows, which can range from 10s of MBs to 100s of GBs.
 
+In addition, the launch template installs the AWS CLI via `conda`, which is used by `nextflow` to stage input and output data.
+
 Use the command below to create the corresponding launch template:
 
 ```bash
@@ -385,7 +387,7 @@ You should get something like the following as a response:
 }
 ```
 
-Note the `LaunchTemplateId` value, you will need it later.
+Note the `LaunchTemplateName` value, you will need it later.
 
 ### Batch Compute Environments
 
@@ -411,14 +413,13 @@ You can create several compute environments to suit your needs.  Below we'll cre
 10. In the "Launch template" drop down, select the `genomics-workflow-template` you created previously
 11. Set Minimum and Desired vCPUs to 0.
  
-!!! info
-    Minimum vCPUs is the lowest number of active vCPUs (i.e. instances) your compute environment will keep running and available for placing jobs when there are no jobs queued.  Setting this to 0 means that AWS Batch will terminate all instances when all queued jobs are complete.
-
-    Desired vCPUs is the number of active vCPUs (i.e. instances) that are currently needed in the compute environment to process queued
-    jobs.  Setting this to 0 implies that there are currently no queued jobs.  AWS Batch will adjust this number based on the number of jobs queued and their resource requirements.
-
-    Maximum vCPUs is the highest number of active vCPUs (i.e. instances) your compute environment will launch.  This places a limit on
-    the number of jobs the compute environment can process in parallel.
+> *INFO*
+> 
+>  Minimum vCPUs is the lowest number of active vCPUs (i.e. instances) your compute environment will keep running and available for placing jobs when there are no jobs queued.  Setting this to 0 means that AWS Batch will terminate all instances when all queued jobs are complete.
+>
+>  Desired vCPUs is the number of active vCPUs (i.e. instances) that are currently needed in the compute environment to process queued jobs.  Setting this to 0 implies that there are currently no queued jobs.  AWS Batch will adjust this number based on the number of jobs queued and their resource requirements.
+> 
+>  Maximum vCPUs is the highest number of active vCPUs (i.e. instances) your compute environment will launch.  This places a limit on the number of jobs the compute environment can process in parallel.
 
 For networking, the options are populated with your account's default VPC, public subnets, and security group.  This should be sufficient for the purposes of this workshop.  In a production setting, it is recommended to use a separate VPC, private subnets therein, and associated security groups.
 
@@ -518,7 +519,7 @@ There are a couple key ways to run Nextflow:
 
 *  locally for both the master process and jobs
 *  locally for the master process with AWS Batch for jobs
-*  (Advanced) Containerized with "Batch-Squared" Infrastructure - An AWS Batch job for the master process that creates additional AWS Batch jobs
+*  containerized with "Batch-Squared" Infrastructure - An AWS Batch job for the master process that creates additional AWS Batch jobs
 
 ### Local master and jobs
 
@@ -539,6 +540,8 @@ Sometimes these requirements are beyond what a laptop or a single EC2 instance c
 
 A more cost effective method is to provision compute resources dynamically, as they are needed for each step of the workflow.
 This is what AWS Batch is good at doing.
+
+Here we'll use the AWS Resources that were created ahead of time in your account.  (These match the resources described in [Module 1](#module-1---aws-resources)).
 
 To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes) you'll need to know the following:
 
@@ -561,7 +564,7 @@ This will create a file called `~/environment/work/nextflow.config` with content
 ```groovy
 workDir = "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/runs"
 process.executor = "awsbatch"
-process.queue = "arn:aws:batch:us-west-2:402873085799:job-queue/default-45e553b0-c840-11e9-bb02-02c3ece5f9fa"
+process.queue = "arn:aws:batch:us-west-2:123456789012:job-queue/default-45e553b0-c840-11e9-bb02-02c3ece5f9fa"
 aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
 ```
 
@@ -604,4 +607,273 @@ which indicates that workflow processes were run remotely as AWS Batch Jobs and 
 
 ### Batch-Squared
 
-Since the master `nextflow` process needs to be connected to jobs to monitor progress, using a local laptop, or a dedicated EC2 instance for the master `nextflow` process is not ideal for long running workflows.
+Since the master `nextflow` process needs to be connected to jobs to monitor progress, using a local laptop, or a dedicated EC2 instance for the master `nextflow` process is not ideal for long running workflows.  In both cases, you need to make sure that the machine or EC2 instance stays on for the duration of the workflow, and is shutdown when the workflow is complete.  If a workflow finishes in the middle of the night, it could be hours before the instance is turned off.
+
+The `nextflow` executable is fairly lightweight and can be easily containerized.  After doing so, you can then submit a job to AWS Batch that runs `nextflow`.  This job will function as the master `nextflow` process and submit additional AWS Batch jobs for the workflow.  Hence, this is AWS Batch running AWS Batch, or Batch-squared!
+
+The benefit of Nextflow on Batch-squared is that since AWS Batch is managing the compute resources for both the master `nextflow` process _and_ the workflow jobs, once the workflow is complete, everything is automatically shut-down for you.
+
+#### Containerizing Nextflow
+
+Here, we'll containerize `nextflow` and push the container image to a repository in Amazon Elastic Container Registry (ECR).  We'll also add an entrypoint script to the container that will enable extra integration with AWS.
+
+In your AWS Cloud9 environment navigate to the `nextflow-workshop` folder.  There you will find the following files:
+
+* `Dockerfile`
+* `nextflow.aws.sh`
+
+If you do not see these files, create them with the following contents:
+
+##### `Dockerfile`
+
+```Dockerfile
+FROM centos:7 AS build
+
+RUN yum update -y \
+ && yum install -y \
+    curl \
+    java-1.8.0-openjdk \
+    awscli \
+ && yum clean -y all
+
+ENV JAVA_HOME /usr/lib/jvm/jre-openjdk/
+
+WORKDIR /opt/inst
+RUN curl -s https://get.nextflow.io | bash
+RUN mv nextflow /usr/local/bin
+
+COPY nextflow.aws.sh /opt/bin/nextflow.aws.sh
+RUN chmod +x /opt/bin/nextflow.aws.sh
+
+WORKDIR /opt/work
+ENTRYPOINT ["/opt/bin/nextflow.aws.sh"]
+```
+
+##### `nextflow.aws.sh`
+
+```bash
+#!/bin/bash
+# $1    Nextflow project. Can be an S3 URI, or git repo name.
+# $2..  Additional parameters passed on to the nextflow cli
+
+# using nextflow needs the following locations/directories provided as
+# environment variables to the container
+#  * NF_LOGSDIR: where caching and logging data are stored
+#  * NF_WORKDIR: where intermmediate results are stored
+
+
+echo "$@"
+NEXTFLOW_PROJECT=$1
+shift
+NEXTFLOW_PARAMS="$@"
+
+# Create the default config using environment variables
+# passed into the container
+NF_CONFIG=~/.nextflow/config
+
+cat << EOF > $NF_CONFIG
+workDir = "$NF_WORKDIR"
+process.executor = "awsbatch"
+process.queue = "$NF_JOB_QUEUE"
+aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
+EOF
+
+# AWS Batch places multiple jobs on an instance
+# To avoid file path clobbering use the JobID and JobAttempt
+# to create a unique path
+GUID="$AWS_BATCH_JOB_ID/$AWS_BATCH_JOB_ATTEMPT"
+
+if [ "$GUID" = "/" ]; then
+    GUID=`date | md5sum | cut -d " " -f 1`
+fi
+
+mkdir -p /opt/work/$GUID
+cd /opt/work/$GUID
+
+# stage in session cache
+# .nextflow directory holds all session information for the current and past runs.
+# it should be `sync`'d with an s3 uri, so that runs from previous sessions can be 
+# resumed
+aws s3 sync --only-show-errors $NF_LOGSDIR/.nextflow .nextflow
+
+# stage workflow definition
+if [[ "$NEXTFLOW_PROJECT" =~ "^s3://.*" ]]; then
+    aws s3 sync --only-show-errors --exclude 'runs/*' --exclude '.*' $NEXTFLOW_PROJECT ./project
+    NEXTFLOW_PROJECT=./project
+fi
+
+echo "== Running Workflow =="
+echo "nextflow run $NEXTFLOW_PROJECT $NEXTFLOW_PARAMS"
+nextflow run $NEXTFLOW_PROJECT $NEXTFLOW_PARAMS
+
+# stage out session cache
+aws s3 sync --only-show-errors .nextflow $NF_LOGSDIR/.nextflow
+
+# .nextflow.log file has more detailed logging from the workflow run and is
+# nominally unique per run.
+#
+# when run locally, .nextflow.logs are automatically rotated
+# when syncing to S3 uniquely identify logs by the batch GUID
+aws s3 cp --only-show-errors .nextflow.log $NF_LOGSDIR/.nextflow.log.${GUID/\//.}
+```
+
+This entrypoint script does a couple of extra things:
+
+1. Stages `nextflow` session and logging data to S3.  This is important since, running as a container on AWS Batch, this data will be deleted when the container process finishes.  Syncing this data to S3 enables use of the `-resume` flag with `nextflow`.
+2. This script also enables projects to be specified as an S3 URI - a bucket and folder therein where you have staged your Nextflow scripts and supporting files (like additional config files).
+
+To build the container, open a bash terminal in AWS Cloud9, `cd` to the directory where the `Dockerfile` and `nextflow.aws.sh` files are and run the following command:
+
+```bash
+cd ~/environment/nextflow-workshop
+docker build -t nextflow .
+```
+
+This will take about 2-3min to complete.
+
+To push the container image to Amazon ECR:
+
+* Create an image repository in Amazon ECR:
+  
+  * Go to the Amazon ECR Console
+  * Do one of:
+    * Click on "Get Started"
+    * Expand the hamburger menu and click on "Repositories" and click on "Create Repository"
+  * For repository name type
+    * "mynextflow" - if you are attending an in person workshop
+    * "nextflow" - if you are doing this on your own
+  * Click "Create Repository"
+
+* Push the container image to ECR
+  
+  * Go to the Amazon ECR Console
+  * Type the name of your repository (e.g. "nextflow") into the search field
+  * Select the repository
+  * Click on "View Push Commands"
+  * Follow the instructions in the dialog that appears in a bash console in AWS Cloud9
+
+
+#### Batch Job Definition for Nextflow
+
+```json
+{
+    "jobDefinitionName": "nextflow",
+    "type": "container",
+    "containerProperties": {
+        "image": "402873085799.dkr.ecr.us-west-2.amazonaws.com/nextflow:latest",
+        "vcpus": 2,
+        "memory": 1024,
+        "jobRoleArn": "arn:aws:iam::402873085799:role/test-nf-workshop-NextflowStack-IAMNextflowJobRole-1JWTOAC7JPRJL",
+        "environment": [
+            {
+                "name": "NF_LOGSDIR",
+                "value": "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/logs"
+            },
+            {
+                "name": "NF_JOB_QUEUE",
+                "value": "arn:aws:batch:us-west-2:402873085799:job-queue/default-45e553b0-c840-11e9-bb02-02c3ece5f9fa"
+            },
+            {
+                "name": "NF_WORKDIR",
+                "value": "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/runs"
+            }
+        ]
+    }
+}
+```
+
+#### Submitting a Nextflow workflow
+
+Bash script
+
+```bash
+#!/bin/bash
+
+WORKFLOW_NAME=$1  # custom name for workflow
+OVERRIDES=$2      # path to json file for job overrides, e.g. file://path/to/overrides.json
+
+AWS_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone| sed -r "s/(.*?)[a-z]/\1/")
+
+# get the name of the high-priority queue
+HIGHPRIORITY_JOB_QUEUE=$(aws --region $AWS_REGION batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
+
+# submits nextflow workflow to AWS Batch
+aws batch submit-job \
+    --region $AWS_REGION \
+    --job-definition nextflow \
+    --job-name nf-workflow-${WORKFLOW_NAME} \
+    --job-queue ${HIGHPRIORITY_JOB_QUEUE} \
+    --container-overrides ${OVERRIDES}
+```
+
+## Module 3 - Automation
+
+If you are running this lab in your own account, use the CloudFormation templates available at the link below to setup your own environment.
+
+[Genomics Workflows on AWS - Nextflow Full Stack](https://docs.opendata.aws/genomics-workflows/orchestration/nextflow/nextflow-overview/#full-stack-deployment)
+
+
+## Module 4 - Extra Credit - Creating a microservice (advanced)
+
+Lambda Function:
+
+```python
+#!/bin/env python
+"""
+lambda function for submitting a nextflow workflow
+"""
+import json
+
+import boto3
+
+def handler(event, context):
+
+    """
+    expected request body:
+    {
+        "name": WORKFLOW_NAME,
+        "queue": (null | name | arn),
+        "command": COMMAND
+    }
+
+    COMMAND should be:
+        * project
+        * args
+    as one would supply to the nextflow command line
+    """
+
+    job_definition = event.get('jobdef', 'nextflow')
+    job_name = f"nf-workflow-{event['name']}"
+
+    batch = boto3.client('batch')
+
+    job_queue = event.get('queue')
+
+    if not job_queue:
+        response = batch.describe_job_queues()
+        if response.get('jobQueues'):
+            job_queues = [
+                job_queue.get('jobQueueName')
+                for job_queue in response['jobQueues']
+                if 'high-priority' in job_queue.get('jobQueueName')
+            ]
+
+            if not job_queues:
+                raise RuntimeError("no high-priority job queue found")
+
+            if len(job_queues) > 1:
+                print("multiple high priority job queues found, using first")
+
+            job_queue = job_queues[0]
+
+    response = batch.submit_job(
+        jobDefinition=job_definition,
+        jobName=job_name,  # should be the workflow name
+        jobQueue=job_queue,  # should be the high-priority queue
+        containerOverrides={
+            "command": event['command'].split()
+        }
+    )
+
+    return json.dumps(response)
+```

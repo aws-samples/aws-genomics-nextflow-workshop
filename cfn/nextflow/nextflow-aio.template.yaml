@@ -214,6 +214,8 @@ Resources:
 Outputs:
   NextflowContainerImage:
     Value: !GetAtt NextflowStack.Outputs.NextflowContainerImage
+    Export:
+      Name: !Sub "${AWS::StackName}-NextflowContainerImage"
     
   NextflowJobDefinition:
     Value: !GetAtt NextflowStack.Outputs.NextflowJobDefinition
@@ -221,6 +223,13 @@ Outputs:
       Name: !Sub "${AWS::StackName}-NextflowJobDefinition"
     Description: >-
       Batch Job Definition that creates a nextflow head node for running workflows
+  
+  NextflowJobRoleArn:
+    Value: !GetAtt NextflowStack.Outputs.NextflowJobRole
+    Export:
+      Name: !Sub "${AWS::StackName}-NextflowJobRoleArn"
+    Description: >-
+      IAM Role that allows the nextflow head node job access to S3 and Batch
   
   S3NextFlowBucket:
     Value: !GetAtt NextflowStack.Outputs.NextflowBucket
