@@ -109,6 +109,13 @@ aws configure set default.region ${AWS_REGION}
 aws configure get default.region
 ```
 
+Install boto3 for Python 3:
+
+```bash
+sudo yum install -y python36-pip
+pip-3.6 install --user boto3
+```
+
 Install Nextflow:
 
 ```bash
@@ -568,16 +575,16 @@ process.queue = "arn:aws:batch:us-west-2:123456789012:job-queue/default-45e553b0
 aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
 ```
 
-Now when your run the `nextflow` "hello world" example from within this `work` folder you should see:
+Now when your run the `nextflow` "hello world" example from within this `work` folder:
 
 ```bash
 cd ~/environment/work
 nextflow run hello
 ```
 
-If everything is configured correctly, you should see the following output:
+you should see the following output:
 
-```
+```text
 N E X T F L O W  ~  version 19.07.0
 Launching `nextflow-io/hello` [angry_heisenberg] - revision: a9012339ce [master]
 WARN: The use of `echo` method is deprecated
@@ -613,9 +620,11 @@ The `nextflow` executable is fairly lightweight and can be easily containerized.
 
 The benefit of Nextflow on Batch-squared is that since AWS Batch is managing the compute resources for both the master `nextflow` process _and_ the workflow jobs, once the workflow is complete, everything is automatically shut-down for you.
 
+The next two sub-sections walk through how to containerize Nextflow and create an AWS Batch Job Definition to run the container.  These resources have already been created in your account for the workshop.
+
 #### Containerizing Nextflow
 
-Here, we'll containerize `nextflow` and push the container image to a repository in Amazon Elastic Container Registry (ECR).  We'll also add an entrypoint script to the container that will enable extra integration with AWS.
+Here, we'll create a `nextflow` Docker container and push the container image to a repository in Amazon Elastic Container Registry (ECR).  As part of the containerization process, we'll add an entrypoint script that will make the container "executable" and enable extra integration with AWS.
 
 In your AWS Cloud9 environment navigate to the `nextflow-workshop` folder.  There you will find the following files:
 
@@ -625,6 +634,8 @@ In your AWS Cloud9 environment navigate to the `nextflow-workshop` folder.  Ther
 If you do not see these files, create them with the following contents:
 
 ##### `Dockerfile`
+
+Since the latest release of `nextflow` can be downloaded as a precompiled executable, the Dockerfile to create a container image is fairly straight-forward and replicates the steps you would do to install `nextflow` on a local system.
 
 ```Dockerfile
 FROM centos:7 AS build
@@ -717,10 +728,10 @@ aws s3 sync --only-show-errors .nextflow $NF_LOGSDIR/.nextflow
 aws s3 cp --only-show-errors .nextflow.log $NF_LOGSDIR/.nextflow.log.${GUID/\//.}
 ```
 
-This entrypoint script does a couple of extra things:
+The entrypoint script does a couple of extra things:
 
-1. Stages `nextflow` session and logging data to S3.  This is important since, running as a container on AWS Batch, this data will be deleted when the container process finishes.  Syncing this data to S3 enables use of the `-resume` flag with `nextflow`.
-2. This script also enables projects to be specified as an S3 URI - a bucket and folder therein where you have staged your Nextflow scripts and supporting files (like additional config files).
+1. It stages `nextflow` session and logging data to S3.  This is important since, running as a container on AWS Batch, this data will be deleted when the container process finishes.  Syncing this data to S3 enables use of the `-resume` flag with `nextflow`.
+2. It also enables projects to be specified as an S3 URI - i.e. a bucket and folder therein where you have staged your Nextflow scripts and supporting files.
 
 To build the container, open a bash terminal in AWS Cloud9, `cd` to the directory where the `Dockerfile` and `nextflow.aws.sh` files are and run the following command:
 
@@ -755,32 +766,82 @@ To push the container image to Amazon ECR:
 
 #### Batch Job Definition for Nextflow
 
-```json
-{
-    "jobDefinitionName": "nextflow",
-    "type": "container",
-    "containerProperties": {
-        "image": "402873085799.dkr.ecr.us-west-2.amazonaws.com/nextflow:latest",
-        "vcpus": 2,
-        "memory": 1024,
-        "jobRoleArn": "arn:aws:iam::402873085799:role/test-nf-workshop-NextflowStack-IAMNextflowJobRole-1JWTOAC7JPRJL",
-        "environment": [
-            {
-                "name": "NF_LOGSDIR",
-                "value": "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/logs"
-            },
-            {
-                "name": "NF_JOB_QUEUE",
-                "value": "arn:aws:batch:us-west-2:402873085799:job-queue/default-45e553b0-c840-11e9-bb02-02c3ece5f9fa"
-            },
-            {
-                "name": "NF_WORKDIR",
-                "value": "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/runs"
-            }
-        ]
-    }
-}
-```
+To run `nextflow` as and AWS Batch job, you'll need a Batch Job Definition.  This needs to reference the following:
+
+* the `nextflow` container image
+* the S3 URI used for nextflow logs and session cache
+* the S3 URI used as a nextflow `workDir`
+* an IAM role for the Job that allows it to call AWS Batch and write to the S3 bucket(s) referenced above
+
+First, create the IAM role for the job:
+
+* Go to the IAM Console
+
+Create a policy that allows the `nextflow` job to call AWS Batch, read-only access to all available / public S3 buckets, and write access **only** to the S3 buckets you will use for logs and workDir.
+
+* Click on "Policies"
+* Click "Create Policy"
+* Select "Batch" as the service
+* Under Actions > Access level:
+  * Check all "List"
+  * Check all "Read"
+  * Under "Write" select:
+    * CancelJob
+    * TerminateJob
+    * SubmitJob
+    * DeregisterJobDefinition
+    * RegisterJobDefinition
+* Under Resources select "All Resources"
+* Repeat the following for as many buckets as you will use (e.g. if you have one bucket for nextflow logs and another for nextflow workDir, you will need to do this twice)
+  * Click "Add additional permissions"
+  * Select "S3" as the service
+  * Select "All Actions"
+  * Under Resources select "Specific"
+  * Under Resources > bucket, click "Add ARN"
+    * Type in the name of the bucket
+    * Click "Add"
+  * Under Resources > object, click "Add ARN"
+    * For "Bucket Name", type in the name of the bucket
+    * For "Object Name", select "Any"
+* Click "Review Policy"
+* Name the policy "nextflow-master-policy"
+* Click "Create Policy"
+
+Create a service role:
+
+* Click on "Roles"
+* Click on "Create role"
+* Select "AWS service" as the trusted entity
+* Choose Elastic Container Service from the larger services list
+* Choose "Elastic Container Service Task" as the use case.
+* Click "Next: Permissions"
+* Type "S3" in the search field
+* Check the box next to "AmazonS3ReadOnlyAccess"
+* Type "nextflow-master-policy" in the search field
+* Check the box next to "nextflow-master-policy" (this is the policy you created above)
+* Click "Next: Tags".  (adding tags is optional)
+* Click "Next: Review"
+* Set the Role Name to "NextflowJobRole"
+* Click "Create role"
+
+Now we have everything we need in place to create the Batch Job Definition.
+
+* Go to the AWS Batch Console
+* Click on "Job Definitions"
+* Click on "Create"
+* In "Job definition name", type "nextflow"
+* In the "Job role" menu, select the NextflowJobRole you created above
+* In "Container image", type the URI for the `nextflow` container image in ECR.
+  * It should look something like: `123456789012.dkr.ecr.{region}.amazonaws.com/nextflow:latest`
+* Set vCPUs = 2
+* Set Memory (MiB) = 1024
+* Click on "Add environment variable" and set:
+  * Key = "NF_LOGSDIR"
+  * Value = "s3://nextflow-workshop-abc-20190101/_nextflow/logs"
+* Repeat the above for:
+  * "NF_WORKDIR"="s3://nextflow-workshop-abc-20190101/_nextflow/logs"
+  * "NF_JOB_QUEUE"="default-job-queue"
+* Click "Create Job Definition"
 
 #### Submitting a Nextflow workflow
 
