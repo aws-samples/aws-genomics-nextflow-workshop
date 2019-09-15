@@ -1111,6 +1111,8 @@ Submit the workflow using:
 ./submit-workflow.sh rnaseq file://rnaseq.parameters.json
 ```
 
+This workflow takes approximately 3hrs to complete.
+
 ## Module 3 - Automation
 
 In [Module 1](#module-1---aws-resources) and [Module 2](#module-2---running-nextflow) you created the infrastructure you needed to run Nextflow on AWS from scratch.  If you need to reproduce these resources in another account or create multiple versions in the same account, you don't need to do so by hand each time.
