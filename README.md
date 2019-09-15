@@ -29,6 +29,8 @@
         - [`nextflow.aws.sh`](#nextflowawssh)
       - [Batch Job Definition for Nextflow](#batch-job-definition-for-nextflow)
       - [Submitting a Nextflow workflow](#submitting-a-nextflow-workflow)
+      - [Run a realistic demo workflow](#run-a-realistic-demo-workflow)
+      - [Run an NF-Core wokflow](#run-an-nf-core-wokflow)
   - [Module 3 - Automation](#module-3---automation)
 
 ## Overview
@@ -1035,6 +1037,78 @@ Output from this script would look like this:
 #     "jobName": "nf-workflow-hello", 
 #     "jobId": "ecb9a154-92a9-4b9f-99d5-f3071acb7768"
 # }
+```
+
+#### Run a realistic demo workflow
+
+Here is the source code for a demo workflow that converts FASTQ files to VCF using bwa-mem, samtools, and bcftools.  It uses a public data set that has been trimmed and only calls variants on chromosome 21 so that the workflow completes in about 5-10 minutes.
+
+https://github.com/wleepang/demo-genomics-workflow-nextflow
+
+To submit this workflow you can use the script you created above:
+
+```bash
+./submit-workflow.sh demo \
+  wleepang/demo-genomics-workflow-nextflow \
+  --output s3://nextflow-workshop-abc-20190101
+```
+
+> NOTE
+> 
+> You need to specify a bucket that you have write access to via the `--output` parameter.  Otherwise, the workflow will fail.
+
+You can check the status of the workflow via the command line:
+
+```bash
+aws batch describe-jobs --jobs $jobid | jq -r .jobs[].status
+```
+
+You can also check the log output from the workflow:
+
+* Go to the AWS Batch Console
+* Click on "Jobs"
+* Select the "highpriority" queue
+* Click on "RUNNING" ()
+* Click on the Job that matches the JobId above
+* Scroll to the bottom of the Job Info and click on "View logs for the most recent attempt in the CloudWatch console".
+
+You should now be in CloudWatch Logs looking at the log stream for the AWS Batch job running your nextflow workflow.
+
+#### Run an NF-Core wokflow
+
+There are many example workflows available via [NF-Core](https://nf-core.re).  These are workflows that are developed using best practices from the Nextflow community.  They are also good starting points to run common analyses such as ATACSeq or RNASeq.
+
+The steps below runs the nf-core/rnaseq workflow against data from the 1000 Genomes dataset.
+
+You can do this directly from the command line with:
+
+```bash
+./submit-workflow.sh rnaseq \
+  nf-core/rnaseq \
+    --reads 's3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz' \
+    --genome GRCh37 \
+    --skip_qc
+```
+
+There are many parameters for this workflow and setting time all via the command line can be cumbersome.  For more complex configuration, it is best to package the container overrides into a JSON file.  To do this for the above workflow configuration:
+
+Create a json file called `rnaseq.parameters.json` with the following contents:
+
+```json
+{
+    "command": [
+      "nf-core/rnaseq",
+      "--reads", "'s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz'",
+      "--genome", "GRCh37",
+      "--skip_qc"
+    ]
+}
+```
+
+Submit the workflow using:
+
+```bash
+./submit-workflow.sh rnaseq file://rnaseq.parameters.json
 ```
 
 ## Module 3 - Automation
