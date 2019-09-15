@@ -8,8 +8,11 @@
     - [S3 Bucket](#s3-bucket)
     - [IAM Roles](#iam-roles)
       - [Create a Batch Service Role](#create-a-batch-service-role)
-      - [Create an EC2 Instance Role](#create-an-ec2-instance-role)
       - [Create an EC2 SpotFleet Role](#create-an-ec2-spotfleet-role)
+      - [Create an IAM Policies](#create-an-iam-policies)
+        - [Bucket access policy](#bucket-access-policy)
+        - [EBS volume policy](#ebs-volume-policy)
+      - [Create an EC2 Instance Role](#create-an-ec2-instance-role)
     - [EC2 Launch Template](#ec2-launch-template)
     - [Batch Compute Environments](#batch-compute-environments)
       - [Create an "optimal" on-demand compute environment](#create-an-%22optimal%22-on-demand-compute-environment)
@@ -27,7 +30,6 @@
       - [Batch Job Definition for Nextflow](#batch-job-definition-for-nextflow)
       - [Submitting a Nextflow workflow](#submitting-a-nextflow-workflow)
   - [Module 3 - Automation](#module-3---automation)
-  - [Module 4 - Extra Credit - Creating a microservice (advanced)](#module-4---extra-credit---creating-a-microservice-advanced)
 
 ## Overview
 
@@ -225,26 +227,6 @@ In Attached permissions policies, the "AWSBatchServiceRole" will already be atta
 * Click "Create role"
 
 
-#### Create an EC2 Instance Role
-
-This is a role that controls what AWS Resources EC2 instances launched by AWS Batch have access to.
-In this case, you will limit S3 access to just the bucket you created earlier.
-
-* Go to the IAM Console
-* Click on "Roles"
-* Click on "Create role"
-* Select "AWS service" as the trusted entity
-* Choose EC2 from the larger services list
-* Choose "EC2 - Allows EC2 instances to call AWS services on your behalf" as the use case.
-* Click "Next: Permissions"
-* Type "ContainerService" in the search field for policies
-* Click the checkbox next to "AmazonEC2ContainerServiceforEC2Role" to attach the policy
-* Click "Next: Tags".  (adding tags is optional)
-* Click "Next: Review"
-* Set the Role Name to "ecsInstanceRole"
-* Click "Create role"
-
-
 #### Create an EC2 SpotFleet Role
 
 This is a role that allows creation and launch of Spot fleets - Spot instances with similar compute capabilities (i.e. vCPUs and RAM).  This is for using Spot instances when running jobs in AWS Batch.
@@ -262,6 +244,101 @@ In Attached permissions policies, the "AmazonEC2SpotFleetTaggingRole" will alrea
 * Click "Next: Review"
 * Set the Role Name to "AWSSpotFleetTaggingRole"
 * Click "Create role"
+
+
+#### Create an IAM Policies
+
+For the EC2 instance role in the next section, it is recommended to restrict access to just the resources and permissions it needs to use.  In this case, it will be:
+
+* Access to the specific buckets used for input and output data
+* The ability to create and add EBS volumes to the instance (more on this later)
+
+These policies could be used by other roles, so it will be easier to manage if it each are stand alone documents.
+
+##### Bucket access policy
+
+* Go to the IAM Console
+* Click on "Policies"
+* Click on "Create Policy"
+* Repeat the following for as many buckets as you will use (e.g. if you have one bucket for nextflow logs and another for nextflow workDir, you will need to do this twice)
+  * Select "S3" as the service
+  * Select "All Actions"
+  * Under Resources select "Specific"
+  * Under Resources > bucket, click "Add ARN"
+    * Type in the name of the bucket
+    * Click "Add"
+  * Under Resources > object, click "Add ARN"
+    * For "Bucket Name", type in the name of the bucket
+    * For "Object Name", select "Any"
+  * Click "Add additional permissions" if you have additional buckets you are using
+* Click "Review Policy"
+* Name the policy "bucket-access-policy"
+* Click "Create Policy"
+
+##### EBS volume policy
+
+* Go to the IAM Console
+* Click on "Policies"
+* Click on "Create Policy"
+* Switch to the "JSON" tab
+* Paste the following into the editor:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": {
+        "Action": [
+            "ec2:createVolume",
+            "ec2:attachVolume",
+            "ec2:deleteVolume",
+            "ec2:modifyInstanceAttribute",
+            "ec2:describeVolumes"
+        ],
+        "Resource": "*",
+        "Effect": "Allow"
+    }
+}
+```
+
+* Click "Review Policy"
+* Name the policy "ebs-autoscale-policy"
+* Click "Create Policy"
+
+
+#### Create an EC2 Instance Role
+
+This is a role that controls what AWS Resources EC2 instances launched by AWS Batch have access to.
+In this case, you will limit S3 access to just the bucket you created earlier.
+
+* Go to the IAM Console
+* Click on "Roles"
+* Click on "Create role"
+* Select "AWS service" as the trusted entity
+* Choose EC2 from the larger services list
+* Choose "EC2 - Allows EC2 instances to call AWS services on your behalf" as the use case.
+* Click "Next: Permissions"
+
+* Type "ContainerService" in the search field for policies
+* Click the checkbox next to "AmazonEC2ContainerServiceforEC2Role" to attach the policy
+
+* Type "S3" in the search field for policies
+* Click the checkbox next to "AmazonS3ReadOnlyAccess" to attach the policy
+  
+> NOTE
+>
+> Enabling Read-Only access to all S3 resources is required if you use publicly available datasets such as the [1000 Genomes dataset](https://registry.opendata.aws/1000-genomes/), and others, available in the [AWS Registry of Open Datasets](https://registry.opendata.aws)
+
+* Type "bucket-access-policy" in the search field for policies
+* Click the checkbox next to "bucket-access-policy" to attach the policy
+
+* Type "ebs-autoscale-policy" in the search field for policies
+* Click the checkbox next to "ebs-autoscale-policy" to attach the policy
+
+* Click "Next: Tags".  (adding tags is optional)
+* Click "Next: Review"
+* Set the Role Name to "ecsInstanceRole"
+* Click "Create role"
+
 
 ### EC2 Launch Template
 
@@ -792,19 +869,8 @@ Create a policy that allows the `nextflow` job to call AWS Batch, read-only acce
     * DeregisterJobDefinition
     * RegisterJobDefinition
 * Under Resources select "All Resources"
-* Repeat the following for as many buckets as you will use (e.g. if you have one bucket for nextflow logs and another for nextflow workDir, you will need to do this twice)
-  * Click "Add additional permissions"
-  * Select "S3" as the service
-  * Select "All Actions"
-  * Under Resources select "Specific"
-  * Under Resources > bucket, click "Add ARN"
-    * Type in the name of the bucket
-    * Click "Add"
-  * Under Resources > object, click "Add ARN"
-    * For "Bucket Name", type in the name of the bucket
-    * For "Object Name", select "Any"
 * Click "Review Policy"
-* Name the policy "nextflow-master-policy"
+* Name the policy "nextflow-batch-access-policy"
 * Click "Create Policy"
 
 Create a service role:
@@ -817,8 +883,18 @@ Create a service role:
 * Click "Next: Permissions"
 * Type "S3" in the search field
 * Check the box next to "AmazonS3ReadOnlyAccess"
-* Type "nextflow-master-policy" in the search field
-* Check the box next to "nextflow-master-policy" (this is the policy you created above)
+
+* Type "nextflow-batch-access-policy" in the search field
+* Check the box next to "nextflow-batch-access-policy" (this is the policy you created above)
+
+You'll also need to add the policies you created in [Module - 1](#module-1---aws-resources) > [IAM Roles](#iam-roles) > [Create IAM Policies](#create-an-iam-policies) for S3 bucket access and EBS autoscaling.
+
+* Type "bucket-access-policy" in the search field
+* Check the box next to "bucket-access-policy"
+
+* Type "nextflow-batch-access-policy" in the search field
+* Check the box next to "ebs-autoscale-policy"
+
 * Click "Next: Tags".  (adding tags is optional)
 * Click "Next: Review"
 * Set the Role Name to "NextflowJobRole"
@@ -845,96 +921,131 @@ Now we have everything we need in place to create the Batch Job Definition.
 
 #### Submitting a Nextflow workflow
 
-Bash script
+To submit a Nextflow workflow - e.g. the `nextflow` "hello" workflow to the Batch-squared architecture:
+
+* Go to the AWS Batch Console
+* Click "Jobs"
+* Click "Submit job"
+* Set "Job name" as "nf-workflow-hello"
+* For "Job definition" select "nextflow:1"
+* For "Job queue" select "highpriority".  It is important that the `nextflow` master process not be interrupted for the duration of the workflow.
+* In the "Command" field type "hello".  Text here is the same as what would be sent as `...` arguments to a `docker run -it nextflow ...` command.
+* Click "Submit job"
+
+To monitor the status of the workflow:
+
+* Go to the AWS Batch Console
+* Click on "Dashboard"
+
+You should see 1 job advance from "SUBMITTED" to "RUNNING" in the "highpriority" queue row.
+
+Once the job enters the "RUNNING" state, you should see 4 additional jobs get submitted to the "default" queue.  These are the processes defined in the workflow.
+
+When jobs are complete (either FAILED or SUCCEEDED) you can check the logs generated.
+
+You can also use the AWS CLI to submit workflows.  For example, to run the `nextflow` "hello" workflow, type the following into a bash terminal:
+
+```bash
+aws batch submit-job \
+  --job-definition nextflow \
+  --job-name nf-workflow-hello \
+  --job-queue highpriority \
+  --container-overrides command=hello
+```
+
+You should get a response like:
+
+```json
+{
+    "jobName": "nf-workflow-hello", 
+    "jobId": "93e2b96e-9bee-4d67-b935-d31d2c12173a"
+}
+```
+
+which contains the AWS Batch JobId you can use to track progress of the workflow.  To do this, you can use the Jobs view in the AWS Batch Console.
+
+You can also simplify the command by wrapping it in a bash script that gather's key information automatically.
 
 ```bash
 #!/bin/bash
 
-WORKFLOW_NAME=$1  # custom name for workflow
-OVERRIDES=$2      # path to json file for job overrides, e.g. file://path/to/overrides.json
+# Helper script for submitting nextflow workflows to Batch-squared architecture
+# Workflows are submitted to the first "highpriority" Batch Job Queue found in
+# in the default AWS region configured for the user.
+#
+# Usage:
+# submit-workflow.sh WORKFLOW_NAME (file://OVERRIDES_JSON | (CONTAINER_ARGS ...))
+#
+# Examples:
+# submit-workflow.sh hello file://hello.overrides.json
+# submit-workflow.sh hello hello
 
-AWS_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone| sed -r "s/(.*?)[a-z]/\1/")
+WORKFLOW_NAME=$1  # custom name for workflow
+shift
+PARAMS=("$@")     # args or path to json file for job overrides, e.g. file://path/to/overrides.json
+
+# assume that the default region is set as a global environment variable
+# alternatively get it using `aws configure get default.region`
+if [ -z "$AWS_REGION" ]; then
+    AWS_REGION=`aws configure get default.region`
+fi
+
+if [[ ${PARAMS[0]} == file://* ]]; then
+    # user provided a file path to an overrides json
+    # shift remaining args
+    OVERRIDES=${PARAMS[0]}
+    shift
+else
+    # construct a comma separated list for shorthand overrides notation
+    OVERRIDES=$(printf "'%s'," ${PARAMS[@]})
+    OVERRIDES="command=${OVERRIDES%,}"
+fi
 
 # get the name of the high-priority queue
 HIGHPRIORITY_JOB_QUEUE=$(aws --region $AWS_REGION batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
 
+if [ -z "$HIGHPRIORITY_JOB_QUEUE" ]; then
+    echo "no highpriority job queue found"
+    exit 1
+fi
+
 # submits nextflow workflow to AWS Batch
+# command is printed to stdout for debugging
+COMMAND=$(cat <<EOF
 aws batch submit-job \
     --region $AWS_REGION \
     --job-definition nextflow \
     --job-name nf-workflow-${WORKFLOW_NAME} \
     --job-queue ${HIGHPRIORITY_JOB_QUEUE} \
     --container-overrides ${OVERRIDES}
+EOF
+)
+
+echo $COMMAND
+${COMMAND}
+```
+
+Output from this script would look like this:
+
+```bash
+./submit-workflow.sh hello hello
+
+# aws batch submit-job --region us-west-2 --job-definition nextflow --job-name nf-workflow-hello --job-queue highpriority-45e553b0-c840-11e9-bb02-02c3ece5f9fa --container-overrides command='hello'
+# {
+#     "jobName": "nf-workflow-hello", 
+#     "jobId": "ecb9a154-92a9-4b9f-99d5-f3071acb7768"
+# }
 ```
 
 ## Module 3 - Automation
 
-If you are running this lab in your own account, use the CloudFormation templates available at the link below to setup your own environment.
+In [Module 1](#module-1---aws-resources) and [Module 2](#module-2---running-nextflow) you created the infrastructure you needed to run Nextflow on AWS from scratch.  If you need to reproduce these resources in another account or create multiple versions in the same account, you don't need to do so by hand each time.
+
+All of what you created can be automated using AWS Cloudformation which allows you to describe your infrastructure as code using Cloudformation templates.
+
+You can use the CloudFormation templates available at the link below to setup this infrastructure in your own environment.
 
 [Genomics Workflows on AWS - Nextflow Full Stack](https://docs.opendata.aws/genomics-workflows/orchestration/nextflow/nextflow-overview/#full-stack-deployment)
 
+The source code is also open source and available on Github - so you can customize the architecture to suit special use cases.
 
-## Module 4 - Extra Credit - Creating a microservice (advanced)
-
-Lambda Function:
-
-```python
-#!/bin/env python
-"""
-lambda function for submitting a nextflow workflow
-"""
-import json
-
-import boto3
-
-def handler(event, context):
-
-    """
-    expected request body:
-    {
-        "name": WORKFLOW_NAME,
-        "queue": (null | name | arn),
-        "command": COMMAND
-    }
-
-    COMMAND should be:
-        * project
-        * args
-    as one would supply to the nextflow command line
-    """
-
-    job_definition = event.get('jobdef', 'nextflow')
-    job_name = f"nf-workflow-{event['name']}"
-
-    batch = boto3.client('batch')
-
-    job_queue = event.get('queue')
-
-    if not job_queue:
-        response = batch.describe_job_queues()
-        if response.get('jobQueues'):
-            job_queues = [
-                job_queue.get('jobQueueName')
-                for job_queue in response['jobQueues']
-                if 'high-priority' in job_queue.get('jobQueueName')
-            ]
-
-            if not job_queues:
-                raise RuntimeError("no high-priority job queue found")
-
-            if len(job_queues) > 1:
-                print("multiple high priority job queues found, using first")
-
-            job_queue = job_queues[0]
-
-    response = batch.submit_job(
-        jobDefinition=job_definition,
-        jobName=job_name,  # should be the workflow name
-        jobQueue=job_queue,  # should be the high-priority queue
-        containerOverrides={
-            "command": event['command'].split()
-        }
-    )
-
-    return json.dumps(response)
-```
