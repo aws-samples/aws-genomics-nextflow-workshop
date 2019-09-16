@@ -4,19 +4,30 @@ Description: >-
   (WWPS-GWF-NEXTFLOW-CLOUD9) Creates a Cloud9 environment for developing genomics
   workflows using Nextflow
 
-# Parameters:
-#   EnvironmentOwnerIAMType:
-#     Type: String
-#     AllowedValues:
-#       - user
-#       - assumed-role
-#     Default: assumed-role
-#   EnvironmentOwnerIAMName:
-#     Type: String
-#     Default: TeamRole
-#     Description: >-
-#       IAM user name or assumed-role name that will be set as the environment owner.
-#       Note: This cannot be "*"
+Parameters:
+  EnvironmentOwnerType:
+    Type: String
+    AllowedValues:
+      - user
+      - assumed-role
+    Default: assumed-role
+    Description: >-
+      Type of access the owner of environment has.  The default is an assumed-role
+      which is used by the workshop event engine.  If testing this in your own account this should
+      be "user".
+  EnvironmentOwnerName:
+    Type: String
+    Default: TeamRole/MasterKey
+    Description: >-
+      IAM user name or assumed-role name and session name that will be set as the environment owner.
+      Note: This cannot be "*".  The default is "TeamRole/MasterKey" which is created by the 
+      workshop event engine.  If testing this in your own account, you should set it to your IAM user name.
+
+Conditions:
+  UseAssumedRole:
+    Fn::Equals:
+      - !Ref EnvironmentOwnerType
+      - assumed-role
   
 Resources:
   IAMInstanceRole:
@@ -63,7 +74,12 @@ Resources:
       Description: Development environment for building genomics workflows with Nextflow
       InstanceType: m4.large
       AutomaticStopTimeMinutes: 30
-      OwnerArn: !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/TeamRole/MasterKey"
+      OwnerArn:
+        Fn::If:
+          - UseAssumedRole
+          - !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/${EnvironmentOwnerName}"
+          - !Sub "arn:aws:iam::${AWS::AccountId}:user/${EnvironmentOwnerName}"
+      
       Repositories:
         # despite the docs saying that this should be a CodeCommit repository
         # it seems to work with any publically accessible git repository with an HTTPS url
