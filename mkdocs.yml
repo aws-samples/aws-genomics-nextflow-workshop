@@ -1,8 +1,14 @@
 site_name: Nextflow on AWS
 nav:
-- index.md
+- Introduction: index.md
+- Modules:
+  - 0 - Cloud9 Environment Setup: modules/module-0__cloud9-environment.md
+  - 1 - AWS Resources: modules/module-1__aws-resources.md
+  - 2 - Running Nextflow: modules/module-2__running-nextflow.md
+  - 3 - Automation: modules/module-3__automation.md
 
 extra_css: [extra.css]
+extra_javascript: [extra.js]
 
 theme:
   name: material
@@ -11,3 +17,5 @@ theme:
     primary: blue grey
     accent: deep orange
 
+markdown_extensions:
+  - admonition
