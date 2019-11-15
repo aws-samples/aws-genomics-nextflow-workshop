@@ -10,7 +10,7 @@ The above are created using Cloudformation templates in `cfn/`:
 * Cloud9: `cfn/cloud9.cfn.yaml`
 * Nextflow: `cfn/nextflow/nextflow-aio.template.yaml`
 
-The Nextflow template uses nested templates which are also provided in `cfn/`.  They have also been uploaded to the S3 URI `pwyming-demos-templates/nextflow-workshop/` with public read ACLs.  You shouldn't have to change any of the nested templates, unless you want to customize them to suit specific needs.
+The Nextflow template uses nested templates which are also provided in `cfn/`.  For long term consistency, these templates are a frozen version of the "Nextflow Full Stack Deployment" described on the [Genomics Workflows on AWS](https://docs.opendata.aws/genomics-workflows/) guide.  They have also been uploaded to the S3 URI `pwyming-demos-templates/nextflow-workshop/` with public read ACLs.  You shouldn't have to change any of the nested templates, unless you want to customize them to suit specific needs.
 
 ## Testing
 
@@ -25,3 +25,24 @@ A Cloud9 environment created by Cloudformation without specifying an owner will 
 The Cloud9 template defaults to using the Assumed Role "TeamRole/MasterKey" as the owner, which is the role that participants using an EE based workshop will use.
 
 To test the Cloud9 environment in your own account, you need to set the `EnvironmentOwnerType` to `user` and set the `EnvironmentOwnerName` to an IAM user you can login as.
+
+## Workshop Guide
+
+The guide used by workshop attendees is in `docs/`.  This is a static site created using [MkDocs](https://www.mkdocs.org/) and themed according to AWS Branding guidelines.
+
+To build a local preview of the site:
+
+```bash
+mkdocs serve
+```
+
+You can then browse to http://localhost:8000
+
+To build the guide for attendee access:
+
+```bash
+mkdocs build
+aws s3 cp --recursive ./site s3://bucket/prefix
+```
+
+Participants are directed to a shortened url that redirects to an S3 bucket website.
