@@ -492,7 +492,7 @@ You can do this directly from the command line with:
     --skip_qc
 ```
 
-There are many parameters for this workflow and setting time all via the command line can be cumbersome.  For more complex configuration, it is best to package the container overrides into a JSON file.  To do this for the above workflow configuration:
+There are many parameters for this workflow, and setting all via the command line can be cumbersome.  For more complex configurations, it is best to package the container overrides into a JSON file.  To do this for the above workflow configuration:
 
 Create a json file called `rnaseq.parameters.json` with the following contents:
 

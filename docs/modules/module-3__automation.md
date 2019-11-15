@@ -8,4 +8,4 @@ You can use the CloudFormation templates available at the link below to setup th
 
 [Genomics Workflows on AWS - Nextflow Full Stack](https://docs.opendata.aws/genomics-workflows/orchestration/nextflow/nextflow-overview/#full-stack-deployment)
 
-The source code is also open source and available on Github - so you can customize the architecture to suit special use cases.
+The source code is also open source and available on Github - so you can customize the architecture to suit special use cases.  Also, if you have suggestions on how to improve the infrastructure feel free to submit a pull request!
