@@ -3,8 +3,8 @@ nav:
 - Introduction: index.md
 - Modules:
   - 0 - Cloud9 Environment Setup: modules/module-0__cloud9-environment.md
-  - 1 - AWS Resources: modules/module-1__aws-resources.md
-  - 2 - Running Nextflow: modules/module-2__running-nextflow.md
+  - 1 - Running Nextflow: modules/module-1__running-nextflow.md
+  - 2 - AWS Resources: modules/module-2__aws-resources.md
   - 3 - Automation: modules/module-3__automation.md
 
 extra_css: [extra.css]
