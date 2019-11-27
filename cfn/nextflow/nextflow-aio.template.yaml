@@ -21,7 +21,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: "Required"
+          default: "Data Storage"
         Parameters:
           - S3DataBucketName
           - ExistingDataBucket
@@ -273,3 +273,4 @@ Outputs:
     Description: >-
       AWS Batch job queue for high priority workflow jobs, based on EC2 On-Demand
       instances
+...
