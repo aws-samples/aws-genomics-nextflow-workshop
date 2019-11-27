@@ -500,7 +500,7 @@ Create a json file called `rnaseq.parameters.json` with the following contents:
 {
     "command": [
       "nf-core/rnaseq",
-      "--reads", "'s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz'",
+      "--reads", "s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz",
       "--genome", "GRCh37",
       "--skip_qc"
     ]
