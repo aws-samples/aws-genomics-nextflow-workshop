@@ -1,6 +1,6 @@
 # Module 3 - Automation
 
-In [Module 1](./module-1__aws-resources.md) and [Module 2](./module-2__running-nextflow.md) you created the infrastructure you needed to run Nextflow on AWS from scratch.  If you need to reproduce these resources in another account or create multiple versions in the same account, you don't need to do so by hand each time.
+In [Module 1](./module-1__running-nextflow.md) and [Module 2](./module-2__aws-resources.md) you created the infrastructure you needed to run Nextflow on AWS from scratch.  If you need to reproduce these resources in another account or create multiple versions in the same account, you don't need to do so by hand each time.
 
 All of what you created can be automated using AWS Cloudformation which allows you to describe your infrastructure as code using Cloudformation templates.
 

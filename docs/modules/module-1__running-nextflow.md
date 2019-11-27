@@ -28,7 +28,7 @@ Sometimes these requirements are beyond what a laptop or a single EC2 instance c
 A more cost effective method is to provision compute resources dynamically, as they are needed for each step of the workflow.
 This is what AWS Batch is good at doing.
 
-Here we'll use the AWS Resources that were created ahead of time in your account.  (These match the resources described in [Module 1](./module-1__aws-resources).
+Here we'll use the AWS Resources that were created ahead of time in your account.  (These match the resources described in [Module 1](./module-2__aws-resources).
 
 To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes) you'll need to know the following:
 
@@ -292,7 +292,7 @@ Create a service role:
 * Type "nextflow-batch-access-policy" in the search field
 * Check the box next to "nextflow-batch-access-policy" (this is the policy you created above)
 
-You'll also need to add the policies you created in [Module - 1](./module-1__aws-resources.md) > [IAM Roles](./module-1__aws-resources.md#iam-roles) > [Create IAM Policies](./module-1__aws-resources.md#create-an-iam-policies) for S3 bucket access and EBS autoscaling.
+You'll also need to add the policies you created in [Module - 1](./module-2__aws-resources.md) > [IAM Roles](./module-2__aws-resources.md#iam-roles) > [Create IAM Policies](./module-2__aws-resources.md#create-an-iam-policies) for S3 bucket access and EBS autoscaling.
 
 * Type "bucket-access-policy" in the search field
 * Check the box next to "bucket-access-policy"

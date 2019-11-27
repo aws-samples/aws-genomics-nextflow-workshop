@@ -19,3 +19,4 @@ theme:
 
 markdown_extensions:
   - admonition
+  - codehilite
