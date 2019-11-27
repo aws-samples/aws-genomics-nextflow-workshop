@@ -20,7 +20,7 @@ and the data stored in them are globally available.
 
 In the dialog that opens:
 
-  * Provide a "Bucket Name".  This needs to be globally unique.  A pattern that usually works is
+* Provide a "Bucket Name".  This needs to be globally unique.  A pattern that usually works is
 
 ```text
 <workshop-name>-<your-initials>-<date>
@@ -32,7 +32,7 @@ for example:
 nextflow-workshop-abc-20190101
 ```
 
-  * Select the region for the bucket.  Buckets are globally accessible, but the data resides on physical hardware with in a specific region.  It is best to choose a region that is closest to where you are and where you will launch compute resources to reduce network latency and avoid inter-region transfer costs.
+* Select the region for the bucket.  Buckets are globally accessible, but the data resides on physical hardware with in a specific region.  It is best to choose a region that is closest to where you are and where you will launch compute resources to reduce network latency and avoid inter-region transfer costs.
 
 The default options for bucket configuration are sufficient for the purposes of this workshop.
 
@@ -90,31 +90,34 @@ In Attached permissions policies, the "AmazonEC2SpotFleetTaggingRole" will alrea
 * Click "Create role"
 
 
-### Create an IAM Policies
+### Create IAM Policies
 
 For the EC2 instance role in the next section, it is recommended to restrict access to just the resources and permissions it needs to use.  In this case, it will be:
 
-* Access to the specific buckets used for input and output data
+* Access to the specific bucket(s) used for input and output data
 * The ability to create and add EBS volumes to the instance (more on this later)
 
 These policies could be used by other roles, so it will be easier to manage if it each are stand alone documents.
 
 #### Bucket access policy
 
+!!! info
+    If you already created this policy in [Module 1 - Running Nextflow](./module-1__running-nextflow.md) you can skip this section
+
 * Go to the IAM Console
 * Click on "Policies"
 * Click on "Create Policy"
 * Repeat the following for as many buckets as you will use (e.g. if you have one bucket for nextflow logs and another for nextflow workDir, you will need to do this twice)
-  * Select "S3" as the service
-  * Select "All Actions"
-  * Under Resources select "Specific"
-  * Under Resources > bucket, click "Add ARN"
-    * Type in the name of the bucket
-    * Click "Add"
-  * Under Resources > object, click "Add ARN"
-    * For "Bucket Name", type in the name of the bucket
-    * For "Object Name", select "Any"
-  * Click "Add additional permissions" if you have additional buckets you are using
+    * Select "S3" as the service
+    * Select "All Actions"
+    * Under Resources select "Specific"
+    * Under Resources > bucket, click "Add ARN"
+        * Type in the name of the bucket
+        * Click "Add"
+    * Under Resources > object, click "Add ARN"
+        * For "Bucket Name", type in the name of the bucket
+        * For "Object Name", select "Any"
+    * Click "Add additional permissions" if you have additional buckets you are using
 * Click "Review Policy"
 * Name the policy "bucket-access-policy"
 * Click "Create Policy"
@@ -189,67 +192,54 @@ An EC2 Launch Template is used to predefine EC2 instance configuration options s
 
 AWS Batch supports both custom AMIs and EC2 Launch Templates as methods to bootstrap EC2 instances launched for job execution.
 
-In most cases, EC2 Launch Templates can be created using the AWS EC2 Console.
-For this case, we need to use the AWS CLI.
+* Go to the EC2 Console
+* Click on "Launch Templates" (under "Instances")
+* Click on "Create launch template"
+* Under "Launch template name and description"
 
-Create a file named `launch-template-data.json` with the following contents:
+    * Use "genomics-workflow-template" for "Launch template name"
+    * (Optional) Add a description for the template like "launch template for nextflow genomics workflow instances"
+    * Under "Template tags" add the following:
 
-```json
-{
-  "TagSpecifications": [
-    {
-      "ResourceType": "instance",
-      "Tags": [
-        {
-          "Key": "architecture",
-          "Value": "genomics-workflow"
-        },
-        {
-          "Key": "solution",
-          "Value": "nextflow"
-        }
-      ]
-    }
-  ],
-  "BlockDeviceMappings": [
-    {
-      "Ebs": {
-        "DeleteOnTermination": true,
-        "VolumeSize": 50,
-        "VolumeType": "gp2"
-      },
-      "DeviceName": "/dev/xvda"
-    },
-    {
-      "Ebs": {
-        "Encrypted": true,
-        "DeleteOnTermination": true,
-        "VolumeSize": 75,
-        "VolumeType": "gp2"
-      },
-      "DeviceName": "/dev/xvdcz"
-    },
-    {
-      "Ebs": {
-        "Encrypted": true,
-        "DeleteOnTermination": true,
-        "VolumeSize": 20,
-        "VolumeType": "gp2"
-      },
-      "DeviceName": "/dev/sdc"
-    }
-  ],
-  "UserData": "TUlNRS1WZXJzaW9uOiAxLjAKQ29udGVudC1UeXBlOiBtdWx0aXBhcnQvbWl4ZWQ7IGJvdW5kYXJ5PSI9PUJPVU5EQVJZPT0iCgotLT09Qk9VTkRBUlk9PQpDb250ZW50LVR5cGU6IHRleHQvY2xvdWQtY29uZmlnOyBjaGFyc2V0PSJ1cy1hc2NpaSIKCnBhY2thZ2VzOgotIGpxCi0gYnRyZnMtcHJvZ3MKLSBweXRob24yNy1waXAKLSBzZWQKLSB3Z2V0CgpydW5jbWQ6Ci0gcGlwIGluc3RhbGwgLVUgYXdzY2xpIGJvdG8zCi0gc2NyYXRjaFBhdGg9Ii92YXIvbGliL2RvY2tlciIKLSBhcnRpZmFjdFJvb3RVcmw9Imh0dHBzOi8vczMuYW1hem9uYXdzLmNvbS9hd3MtZ2Vub21pY3Mtd29ya2Zsb3dzL2FydGlmYWN0cyIKLSBzZXJ2aWNlIGRvY2tlciBzdG9wCi0gY3AgLWF1IC92YXIvbGliL2RvY2tlciAvdmFyL2xpYi9kb2NrZXIuYmsgIAotIGNkIC9vcHQgJiYgd2dldCAkYXJ0aWZhY3RSb290VXJsL2F3cy1lYnMtYXV0b3NjYWxlLnRneiAmJiB0YXIgLXh6ZiBhd3MtZWJzLWF1dG9zY2FsZS50Z3oKLSBzaCAvb3B0L2Vicy1hdXRvc2NhbGUvYmluL2luaXQtZWJzLWF1dG9zY2FsZS5zaCAkc2NyYXRjaFBhdGggL2Rldi9zZGMgIDI+JjEgPiAvdmFyL2xvZy9pbml0LWVicy1hdXRvc2NhbGUubG9nCi0gY2QgL29wdCAmJiB3Z2V0ICRhcnRpZmFjdFJvb3RVcmwvYXdzLWVjcy1hZGRpdGlvbnMudGd6ICYmIHRhciAteHpmIGF3cy1lY3MtYWRkaXRpb25zLnRnegotIHNoIC9vcHQvZWNzLWFkZGl0aW9ucy9lY3MtYWRkaXRpb25zLW5leHRmbG93LnNoIAotIHNlZCAtaSAncytPUFRJT05TPS4qK09QVElPTlM9Ii0tc3RvcmFnZS1kcml2ZXIgYnRyZnMiK2cnIC9ldGMvc3lzY29uZmlnL2RvY2tlci1zdG9yYWdlCi0gc2VydmljZSBkb2NrZXIgc3RhcnQKLSBzdGFydCBlY3MKCi0tPT1CT1VOREFSWT09LS0="
-}
-```
+        * Key: "architecture", Value: "genomics-workflow"
+        * Key: "solution", Value: "nextflow"
+  
+* Under "Amazon machine image (AMI)"
+  
+    * Type "**amzn-ami-2018.03.y-amazon-ecs-optimized**" in the search field and hit <kbd>enter</kbd>.  Wait for the results to populate (this may take a couple seconds).  You should see one entry available under the "Community AMIs" section - this will be the Amazon ECS Optimized AMI for your current region.
 
-The above template will create an instance with three attached EBS volumes.
+!!! note
+    For faster results, you can specify the AMI-Id directly.  You can look up the specific AMI-Id for your region [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html).
 
-* `/dev/xvda`: will be used for the root volume
-* `/dev/xvdcz`: will be used for the docker metadata volume
-* `/dev/sdc`: will be the initial volume use for scratch space (more on this below)
+!!! warning "Amazon Linux Version"
+    The tooling for this solution currently only supports Amazon Linux 1.  Make sure you select the correct version of the Amazon ECS Optimized AMI that is based on Amazon Linux 2.
 
-The `UserData` value is the `base64` encoded version of the following:
+* Under "Storage volumes"
+  
+    * Click "Add new volume" - this will add an entry called "Volume 3 (custom)"
+        * Set **Size** to **100 GiB**
+        * Set **Delete on termination** to **Yes**
+        * Set **Device name** to **/dev/sdc**
+        * Set **Volume type** to **General purpose SSD (gp2)**
+        * Set **Encrypted** to **Yes** 
+
+!!! info
+    **Volume 1** is used for the root filesystem.  The default size of 8GB is typically sufficient.
+
+    **Volume 2** is used for the Docker image and metadata volume.  This is where Docker will store container images.  If you will be using large images, it is recommended to increase the size of this volume.
+
+    **Volume 3** (the one you created above) will be used for job scratch space.  This will be mapped to `/var/lib/docker` which is used for container storage - i.e. what each running container will use to create its internal filesystem.
+
+* Under "Instance tags"
+
+    * Add the following:
+        * Key: "architecture", Value: "genomics-workflow"
+        * Key: "solution", Value: "nextflow"
+
+* Expand the "Advanced details" section
+
+    * Add the following script to **User data**
+
 
 ```yaml
 MIME-Version: 1.0
@@ -269,52 +259,31 @@ runcmd:
 - pip install -U awscli boto3
 - scratchPath="/var/lib/docker"
 - artifactRootUrl="https://s3.amazonaws.com/aws-genomics-workflows/artifacts"
+- stop ecs
 - service docker stop
-- cp -au /var/lib/docker /var/lib/docker.bk  
+- cp -au /var/lib/docker /var/lib/docker.bk
+- rm -rf /var/lib/docker/*
 - cd /opt && wget $artifactRootUrl/aws-ebs-autoscale.tgz && tar -xzf aws-ebs-autoscale.tgz
 - sh /opt/ebs-autoscale/bin/init-ebs-autoscale.sh $scratchPath /dev/sdc  2>&1 > /var/log/init-ebs-autoscale.log
+- sed -i 's+OPTIONS=.*+OPTIONS="--storage-driver btrfs"+g' /etc/sysconfig/docker-storage
+- cp -au /var/lib/docker.bk/* /var/lib/docker
 - cd /opt && wget $artifactRootUrl/aws-ecs-additions.tgz && tar -xzf aws-ecs-additions.tgz
 - sh /opt/ecs-additions/ecs-additions-nextflow.sh 
-- sed -i 's+OPTIONS=.*+OPTIONS="--storage-driver btrfs"+g' /etc/sysconfig/docker-storage
 - service docker start
 - start ecs
 
 --==BOUNDARY==--
 ```
 
+* Click on "Create launch template"
+
 The above script installs a daemon called `aws-ebs-autoscale` which will create a BTRFS filesystem at a specified mountpoint, spread it across multiple EBS volumes, and add more volumes to ensure availbility of disk space.
 
-In this case, the mount point for auto expanding EBS volumes is set to `/var/lib/docker` - the location of docker container data volumes.  This allows for containers used in the workflow to stage in as much data as they need without needing to bind mount a special location on the host.
+In this case, the mount point for auto expanding EBS volumes is set to `/var/lib/docker` - the location used for docker container storage volumes.  This allows for containers used in the workflow to stage in as much data as they need without needing to bind mount a special location on the host.
 
 The above is used to handle the unpredictable sizes of data files encountered in genomics workflows, which can range from 10s of MBs to 100s of GBs.
 
 In addition, the launch template installs the AWS CLI via `conda`, which is used by `nextflow` to stage input and output data.
-
-Use the command below to create the corresponding launch template:
-
-```bash
-aws ec2 \
-    create-launch-template \
-        --launch-template-name genomics-workflow-template \
-        --launch-template-data file://launch-template-data.json
-```
-
-You should get something like the following as a response:
-
-```json
-{
-    "LaunchTemplate": {
-        "LatestVersionNumber": 1, 
-        "LaunchTemplateId": "lt-0123456789abcdef0", 
-        "LaunchTemplateName": "genomics-workflow-template", 
-        "DefaultVersionNumber": 1, 
-        "CreatedBy": "arn:aws:iam::123456789012:user/alice", 
-        "CreateTime": "2019-01-01T00:00:00.000Z"
-    }
-}
-```
-
-Note the `LaunchTemplateName` value, you will need it later.
 
 ## Batch Compute Environments
 

@@ -228,22 +228,22 @@ To push the container image to Amazon ECR:
 
 * Create an image repository in Amazon ECR:
   
-  * Go to the Amazon ECR Console
-  * Do one of:
-    * Click on "Get Started"
-    * Expand the hamburger menu and click on "Repositories" and click on "Create Repository"
-  * For repository name type
-    * "mynextflow" - if you are attending an in person workshop
-    * "nextflow" - if you are doing this on your own
-  * Click "Create Repository"
+    * Go to the Amazon ECR Console
+    * Do one of:
+        * Click on "Get Started"
+        * Expand the hamburger menu and click on "Repositories" and click on "Create Repository"
+    * For repository name type
+        * "mynextflow" - if you are attending an in person workshop
+        * "nextflow" - if you are doing this on your own
+    * Click "Create Repository"
 
 * Push the container image to ECR
   
-  * Go to the Amazon ECR Console
-  * Type the name of your repository (e.g. "nextflow") into the search field
-  * Select the repository
-  * Click on "View Push Commands"
-  * Follow the instructions in the dialog that appears in a bash console in AWS Cloud9
+    * Go to the Amazon ECR Console
+    * Type the name of your repository (e.g. "nextflow") into the search field
+    * Select the repository
+    * Click on "View Push Commands"
+    * Follow the instructions in the dialog that appears in a bash console in AWS Cloud9
 
 
 ### Batch Job Definition for Nextflow
@@ -259,24 +259,48 @@ First, create the IAM role for the job:
 
 * Go to the IAM Console
 
-Create a policy that allows the `nextflow` job to call AWS Batch, read-only access to all available / public S3 buckets, and write access **only** to the S3 buckets you will use for logs and workDir.
+Create a policy that allows the `nextflow` job to call AWS Batch.
 
 * Click on "Policies"
 * Click "Create Policy"
 * Select "Batch" as the service
 * Under Actions > Access level:
-  * Check all "List"
-  * Check all "Read"
-  * Under "Write" select:
-    * CancelJob
-    * TerminateJob
-    * SubmitJob
-    * DeregisterJobDefinition
-    * RegisterJobDefinition
+    * Check all "List"
+    * Check all "Read"
+    * Under "Write" select:
+        * CancelJob
+        * TerminateJob
+        * SubmitJob
+        * DeregisterJobDefinition
+        * RegisterJobDefinition
 * Under Resources select "All Resources"
+
+!!! note
+    You can restrict nextflow workflows to specific AWS Batch Job Queues by specifying the corresponding Job Queue ARNs
+
 * Click "Review Policy"
 * Name the policy "nextflow-batch-access-policy"
 * Click "Create Policy"
+
+Create a policy that allows the `nextflow` job read-only access to all available / public S3 buckets, and write access **only** to the S3 buckets you will use for logs and workDir.
+
+* Click on "Policies"
+* Click on "Create Policy"
+* Repeat the following for as many buckets as you will use (e.g. if you have one bucket for nextflow logs and another for nextflow workDir, you will need to do this twice)
+    * Select "S3" as the service
+    * Select "All Actions"
+    * Under Resources select "Specific"
+    * Under Resources > bucket, click "Add ARN"
+        * Type in the name of the bucket
+        * Click "Add"
+    * Under Resources > object, click "Add ARN"
+        * For "Bucket Name", type in the name of the bucket
+        * For "Object Name", select "Any"
+    * Click "Add additional permissions" if you have additional buckets you are using
+* Click "Review Policy"
+* Name the policy "bucket-access-policy"
+* Click "Create Policy"
+
 
 Create a service role:
 
@@ -292,13 +316,8 @@ Create a service role:
 * Type "nextflow-batch-access-policy" in the search field
 * Check the box next to "nextflow-batch-access-policy" (this is the policy you created above)
 
-You'll also need to add the policies you created in [Module - 1](./module-2__aws-resources.md) > [IAM Roles](./module-2__aws-resources.md#iam-roles) > [Create IAM Policies](./module-2__aws-resources.md#create-an-iam-policies) for S3 bucket access and EBS autoscaling.
-
 * Type "bucket-access-policy" in the search field
 * Check the box next to "bucket-access-policy"
-
-* Type "nextflow-batch-access-policy" in the search field
-* Check the box next to "ebs-autoscale-policy"
 
 * Click "Next: Tags".  (adding tags is optional)
 * Click "Next: Review"
@@ -313,15 +332,15 @@ Now we have everything we need in place to create the Batch Job Definition.
 * In "Job definition name", type "nextflow"
 * In the "Job role" menu, select the NextflowJobRole you created above
 * In "Container image", type the URI for the `nextflow` container image in ECR.
-  * It should look something like: `123456789012.dkr.ecr.{region}.amazonaws.com/nextflow:latest`
+    * It should look something like: `123456789012.dkr.ecr.{region}.amazonaws.com/nextflow:latest`
 * Set vCPUs = 2
 * Set Memory (MiB) = 1024
 * Click on "Add environment variable" and set:
-  * Key = "NF_LOGSDIR"
-  * Value = "s3://nextflow-workshop-abc-20190101/_nextflow/logs"
+    * Key = "NF_LOGSDIR"
+    * Value = "s3://nextflow-workshop-abc-20190101/_nextflow/logs"
 * Repeat the above for:
-  * "NF_WORKDIR"="s3://nextflow-workshop-abc-20190101/_nextflow/logs"
-  * "NF_JOB_QUEUE"="default-job-queue"
+    * "NF_WORKDIR"="s3://nextflow-workshop-abc-20190101/_nextflow/logs"
+    * "NF_JOB_QUEUE"="default-job-queue"
 * Click "Create Job Definition"
 
 ### Submitting a Nextflow workflow
