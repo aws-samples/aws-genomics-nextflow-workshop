@@ -224,123 +224,115 @@ docker build -t nextflow .
 
 This will take about 2-3min to complete.
 
-To push the container image to Amazon ECR:
 
-* Create an image repository in Amazon ECR:
+### Push the container image into Amazon ECR
+
+Create an image repository in Amazon ECR:
   
-  * Go to the Amazon ECR Console
-  * Do one of:
+1. Go to the Amazon ECR Console
+2. Do one of:
     * Click on "Get Started"
     * Expand the hamburger menu and click on "Repositories" and click on "Create Repository"
-  * For repository name type
+
+3. For repository name type
     * "mynextflow" - if you are attending an in person workshop
     * "nextflow" - if you are doing this on your own
-  * Click "Create Repository"
 
-* Push the container image to ECR
+4. Click "Create Repository"
+
+Push the container image to ECR
   
-  * Go to the Amazon ECR Console
-  * Type the name of your repository (e.g. "nextflow") into the search field
-  * Select the repository
-  * Click on "View Push Commands"
-  * Follow the instructions in the dialog that appears in a bash console in AWS Cloud9
+1. Go to the Amazon ECR Console
+2. Type the name of your repository (e.g. "nextflow") into the search field
+3. Select the respective repository
+4. Click on "View Push Commands" to retrieve a set of instructions for macOS/Linux
+5. Follow these instructions into your AWS Cloud9 environment using the built-in bash console.
 
 
 ### Batch Job Definition for Nextflow
 
-To run `nextflow` as and AWS Batch job, you'll need a Batch Job Definition.  This needs to reference the following:
+To run `nextflow` as an AWS Batch job, you'll need a *Batch Job Definition*.  This needs to reference the following:
 
 * the `nextflow` container image
 * the S3 URI used for nextflow logs and session cache
 * the S3 URI used as a nextflow `workDir`
 * an IAM role for the Job that allows it to call AWS Batch and write to the S3 bucket(s) referenced above
 
-First, create the IAM role for the job:
+Let's create the IAM role for the job.
 
-* Go to the IAM Console
+First, create a policy that allows the `nextflow` job to call AWS Batch, read-only access to all available / public S3 buckets, and write access **only** to the S3 buckets you will use for logs and workDir.
 
-Create a policy that allows the `nextflow` job to call AWS Batch, read-only access to all available / public S3 buckets, and write access **only** to the S3 buckets you will use for logs and workDir.
-
-* Click on "Policies"
-* Click "Create Policy"
-* Select "Batch" as the service
-* Under Actions > Access level:
-  * Check all "List"
-  * Check all "Read"
-  * Under "Write" select:
-    * CancelJob
-    * TerminateJob
-    * SubmitJob
-    * DeregisterJobDefinition
-    * RegisterJobDefinition
-* Under Resources select "All Resources"
-* Click "Review Policy"
-* Name the policy "nextflow-batch-access-policy"
-* Click "Create Policy"
+1. Navigate to the IAM Console
+2. Click on "Policies"
+3. Click "Create Policy"
+4. Using the "Visual Editor" tab, under the "Service" selector, search for and choose "Batch" 
+5. Under "Actions" > "Access level":
+     * Check all "List"
+     * Check all "Read"
+     * Expand the "Write" section and select:
+         * CancelJob
+         * TerminateJob
+         * SubmitJob
+         * DeregisterJobDefinition
+         * RegisterJobDefinition
+6. Under "Resources" select "All Resources"
+7. Click "Review Policy"
+8. Name the policy "nextflow-batch-access-policy"
+9. Click "Create Policy"
 
 Create a service role:
 
-* Click on "Roles"
-* Click on "Create role"
-* Select "AWS service" as the trusted entity
-* Choose Elastic Container Service from the larger services list
-* Choose "Elastic Container Service Task" as the use case.
-* Click "Next: Permissions"
-* Type "S3" in the search field
-* Check the box next to "AmazonS3ReadOnlyAccess"
-
-* Type "nextflow-batch-access-policy" in the search field
-* Check the box next to "nextflow-batch-access-policy" (this is the policy you created above)
-
-You'll also need to add the policies you created in [Module - 1](./module-1__aws-resources.md) > [IAM Roles](./module-1__aws-resources.md#iam-roles) > [Create IAM Policies](./module-1__aws-resources.md#create-an-iam-policies) for S3 bucket access and EBS autoscaling.
-
-* Type "bucket-access-policy" in the search field
-* Check the box next to "bucket-access-policy"
-
-* Type "nextflow-batch-access-policy" in the search field
-* Check the box next to "ebs-autoscale-policy"
-
-* Click "Next: Tags".  (adding tags is optional)
-* Click "Next: Review"
-* Set the Role Name to "NextflowJobRole"
-* Click "Create role"
+1. Navigate to the IAM Console
+2. Click on "Roles"
+3. Click on "Create role"
+4. Select "AWS service" as the trusted entity
+5. Choose Elastic Container Service from the larger services list
+6. Choose "Elastic Container Service Task" as the use case.
+7. Click "Next: Permissions"
+8. Type "S3" in the search field
+9. Check the box next to "AmazonS3ReadOnlyAccess"
+10. Return to the search field, erase "S3", and type "nextflow-batch-access-policy"
+11. Check the box next to "nextflow-batch-access-policy". This is the policy you created above. We need to add the other policies created in [Module - 1](./module-1__aws-resources.md) > [IAM Roles](./module-1__aws-resources.md#iam-roles) > [Create IAM Policies](./module-1__aws-resources.md#create-an-iam-policies) for S3 bucket access and EBS autoscaling.
+12. Type "bucket-access-policy" in the search field
+13. Check the box next to "bucket-access-policy"
+14. Type "ebs-autoscale-policy" in the search field
+15. Check the box next to "ebs-autoscale-policy"
+16. Click "Next: Tags".  (adding tags is optional)
+17. Click "Next: Review" and confirm you have the "AmazonS3ReadOnlyAccess", "nextflow-batch-access-policy", "bucket-access-policy", and "ebs-autoscale-policy" listed under "Policies". 
+18. Set the Role Name to "NextflowJobRole"
+19. Click "Create role"
 
 Now we have everything we need in place to create the Batch Job Definition.
 
-* Go to the AWS Batch Console
-* Click on "Job Definitions"
-* Click on "Create"
-* In "Job definition name", type "nextflow"
-* In the "Job role" menu, select the NextflowJobRole you created above
-* In "Container image", type the URI for the `nextflow` container image in ECR.
-  * It should look something like: `123456789012.dkr.ecr.{region}.amazonaws.com/nextflow:latest`
-* Set vCPUs = 2
-* Set Memory (MiB) = 1024
-* Click on "Add environment variable" and set:
-  * Key = "NF_LOGSDIR"
-  * Value = "s3://nextflow-workshop-abc-20190101/_nextflow/logs"
-* Repeat the above for:
-  * "NF_WORKDIR"="s3://nextflow-workshop-abc-20190101/_nextflow/logs"
-  * "NF_JOB_QUEUE"="default-job-queue"
-* Click "Create Job Definition"
+1. Go to the AWS Batch Console
+2. Click on "Job queues" and then on the "default" queue you created previously
+3. Take note of the "Queue ARN" parameter, then click "Close" to return to the Batch console
+4. Click on "Job Definitions" in the left sidebar
+5. Click on "Create"
+6. In "Job definition name", type "nextflow"
+7. Under Environment, in the "Job role" menu, select the NextflowJobRole you created above
+8. In "Container image", type the URI for the `nextflow` container image in ECR. This was used by your last `docker push` command in your AWS Cloud9 bash console, and should look something like: `123456789012.dkr.ecr.{region}.amazonaws.com/nextflow:latest`
+9. Set "vCPUs" to "2"
+10. Set "Memory (MiB)" to "1024"
+11. Under the "Environment variables" section, click on "Add environment variable", set "Key" to "NF_LOGSDIR" and "Value" as the log file target in your S3 bucket, such as "s3://nextflow-workshop-abc-20190101/_nextflow/logs"
+12. Similarly, add the "NF_WORKDIR" environment variable using the same "Value" as above but with the "runs" suffix in place of "logs", such as "s3://nextflow-workshop-abc-20190101/_nextflow/runs"
+13. Add another environment variable "NF_JOB_QUEUE" using as value the "Queue ARN" of the "default" job queue from above
+14. Click "Create Job Definition".
 
 ### Submitting a Nextflow workflow
 
-To submit a Nextflow workflow - e.g. the `nextflow` "hello" workflow to the Batch-squared architecture:
+Let's submit a Nextflow workflow to the Batch-squared architecture, e.g. the `nextflow run hello` for the "hello" workflow :
 
-* Go to the AWS Batch Console
-* Click "Jobs"
-* Click "Submit job"
-* Set "Job name" as "nf-workflow-hello"
-* For "Job definition" select "nextflow:1"
-* For "Job queue" select "highpriority".  It is important that the `nextflow` master process not be interrupted for the duration of the workflow.
-* In the "Command" field type "hello".  Text here is the same as what would be sent as `...` arguments to a `docker run -it nextflow ...` command.
-* Click "Submit job"
+1. Go to the AWS Batch Console
+2. Click "Jobs"
+3. Click "Submit job"
+4. Set "Job name" as "nf-workflow-hello"
+5. For "Job definition" select "nextflow:1"
+6. For "Job queue" select "highpriority".  It is important that the `nextflow` master process not be interrupted for the duration of the workflow
+7. In the "Command" field type "hello".  Text here is the same as what would be sent as `...` arguments to a `docker run -it nextflow ...` command
+8. Click "Submit job".
 
-To monitor the status of the workflow:
-
-* Go to the AWS Batch Console
-* Click on "Dashboard"
+To monitor the status of the workflow, navigate back to the AWS Batch Console and click on "Dashboard" in the left sidebar.
 
 You should see 1 job advance from "SUBMITTED" to "RUNNING" in the "highpriority" queue row.
 
@@ -459,26 +451,25 @@ To submit this workflow you can use the script you created above:
 !!! note
     You need to specify a bucket that you have write access to via the `--output` parameter.  Otherwise, the workflow will fail.
 
-You can check the status of the workflow via the command line:
+You can check the status of the workflow via the following command line where you replace "JOBID" with the "jobId" output from above:
 
 ```bash
-aws batch describe-jobs --jobs $jobid | jq -r .jobs[].status
+aws batch describe-jobs --jobs JOBID | jq -r .jobs[].status
 ```
 
 You can also check the log output from the workflow:
 
-* Go to the AWS Batch Console
-* Click on "Jobs"
-* Select the "highpriority" queue
-* Click on "RUNNING" ()
-* Click on the Job that matches the JobId above
-* Scroll to the bottom of the Job Info and click on "View logs for the most recent attempt in the CloudWatch console".
+1. Go to the AWS Batch Console
+2. Click on "Jobs"
+3. Select "highpriority" in the Queue dropdown 
+4. Click on the "RUNNING" Status
+5. Click on the Job that matches the JobId above
+6. Scroll to the bottom of the Job Info and click on "View logs for the most recent attempt in the CloudWatch console"
+7. You should now be in "CloudWatch Logs" console looking at the log stream for the AWS Batch job running your nextflow workflow.
 
-You should now be in CloudWatch Logs looking at the log stream for the AWS Batch job running your nextflow workflow.
+### Run an NF-Core workflow
 
-### Run an NF-Core wokflow
-
-There are many example workflows available via [NF-Core](https://nf-core.re).  These are workflows that are developed using best practices from the Nextflow community.  They are also good starting points to run common analyses such as ATACSeq or RNASeq.
+There are many example workflows available via [NF-Core](https://nf-co.re).  These are workflows that are developed using best practices from the Nextflow community.  They are also good starting points to run common analyses such as ATACSeq or RNASeq.
 
 The steps below runs the nf-core/rnaseq workflow against data from the 1000 Genomes dataset.
 
@@ -487,7 +478,7 @@ You can do this directly from the command line with:
 ```bash
 ./submit-workflow.sh rnaseq \
   nf-core/rnaseq \
-    --reads s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz \
+    --reads "s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz" \
     --genome GRCh37 \
     --skip_qc
 ```
@@ -500,7 +491,7 @@ Create a json file called `rnaseq.parameters.json` with the following contents:
 {
     "command": [
       "nf-core/rnaseq",
-      "--reads", "s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz",
+      "--reads", "'s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz'",
       "--genome", "GRCh37",
       "--skip_qc"
     ]
