@@ -1,4 +1,4 @@
-# Module 2 - Running Nextflow
+# Module 1 - Running Nextflow
 
 There are a couple key ways to run Nextflow:
 

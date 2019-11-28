@@ -1,4 +1,4 @@
-# Module 1 - AWS Resources
+# Module 2 - AWS Resources
 
 ![aws resources](../images/aws-resources.png)
 
