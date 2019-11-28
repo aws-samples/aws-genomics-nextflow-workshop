@@ -2,7 +2,7 @@
 
 ![aws resources](../images/aws-resources.png)
 
-This module will cover building the AWS resources you need to run Nextflow on AWS from scratch.
+This module will cover building the core AWS resources you need to run Nextflow on AWS from scratch.
 
 If you are attending an in person workshop, these resources have been created ahead of time in the AWS accounts you were provided.  During the workshop we'll walk through all the pieces of the architecture at a high level so you know how everything is wired together.
 
@@ -102,7 +102,7 @@ These policies could be used by other roles, so it will be easier to manage if i
 #### Bucket access policy
 
 !!! info
-    If you already created this policy in [Module 1 - Running Nextflow](./module-1__running-nextflow.md) you can skip this section
+    If you already created this policy in [Module 1 - Running Nextflow](./module-1__running-nextflow.md) you can skip this creating this policy
 
 * Go to the IAM Console
 * Click on "Policies"
@@ -168,17 +168,17 @@ In this case, you will limit S3 access to just the bucket you created earlier.
 * Type "ContainerService" in the search field for policies
 * Click the checkbox next to "AmazonEC2ContainerServiceforEC2Role" to attach the policy
 
-* Type "S3" in the search field for policies
+* Return to the search field, clear its content, and type "S3" to search for additional policies for this role
 * Click the checkbox next to "AmazonS3ReadOnlyAccess" to attach the policy
 
 !!! note
     Enabling Read-Only access to all S3 resources is required if you use publicly available datasets such as the [1000 Genomes dataset](https://registry.opendata.aws/1000-genomes/), and others, available in the [AWS Registry of Open Datasets](https://registry.opendata.aws)
 
-* Type "bucket-access-policy" in the search field for policies
-* Click the checkbox next to "bucket-access-policy" to attach the policy
+* Repeat this process and type "bucket-access-policy" in the search field for policies
+* Click the checkbox next to "bucket-access-policy" you created in the previous steps to attach the policy
 
-* Type "ebs-autoscale-policy" in the search field for policies
-* Click the checkbox next to "ebs-autoscale-policy" to attach the policy
+* Lastly, type "ebs-autoscale-policy" in the search field for policies
+* Click the checkbox next to "ebs-autoscale-policy" you created in the previous steps to attach the policy
 
 * Click "Next: Tags".  (adding tags is optional)
 * Click "Next: Review"
@@ -188,7 +188,7 @@ In this case, you will limit S3 access to just the bucket you created earlier.
 
 ## EC2 Launch Template
 
-An EC2 Launch Template is used to predefine EC2 instance configuration options such as Amazon Machine Image (AMI), Security Groups, and EBS volumes.  They can also be used to define User Data scripts to provision instances when they boot.  This is simpler than creating (and maintaining) a custom AMI in cases where the provisioning reequirements are simple (e.g. addition of small software utilities) but potentially changing often with new versions.
+An EC2 Launch Template is used to predefine EC2 instance configuration options such as Amazon Machine Image (AMI), Security Groups, and EBS volumes.  They can also be used to define User Data scripts to provision instances when they boot.  This is simpler than creating (and maintaining) a custom AMI in cases where the provisioning requirements are simple (e.g. addition of small software utilities) but potentially changing often with new versions.
 
 AWS Batch supports both custom AMIs and EC2 Launch Templates as methods to bootstrap EC2 instances launched for job execution.
 
@@ -277,7 +277,7 @@ runcmd:
 
 * Click on "Create launch template"
 
-The above script installs a daemon called `aws-ebs-autoscale` which will create a BTRFS filesystem at a specified mountpoint, spread it across multiple EBS volumes, and add more volumes to ensure availbility of disk space.
+The script used for User data installs a daemon called `aws-ebs-autoscale` which will create a BTRFS filesystem at a specified mount point, spread it across multiple EBS volumes, and add more volumes to ensure availability of disk space.
 
 In this case, the mount point for auto expanding EBS volumes is set to `/var/lib/docker` - the location used for docker container storage volumes.  This allows for containers used in the workflow to stage in as much data as they need without needing to bind mount a special location on the host.
 
@@ -297,8 +297,8 @@ You can create several compute environments to suit your needs.  Below we'll cre
 
 ### Create an "optimal" on-demand compute environment
 
-1. Go to the AWS Batch Console
-2. Click on "Compute environments"
+1. Go to the AWS Batch Console. If you have not used Batch before in this account, click on the "Get Started" button to start the wizard, then scroll to the end of the Define Job page and click the "Cancel" button. 
+2. Click on "Compute environments".
 3. Click on "Create environment"
 4. Select "Managed" as the "Compute environment type"
 5. For "Compute environment name" type: "ondemand"
@@ -309,56 +309,52 @@ You can create several compute environments to suit your needs.  Below we'll cre
 10. In the "Launch template" drop down, select the `genomics-workflow-template` you created previously
 11. Set Minimum and Desired vCPUs to 0.
 
-!!! info
-    Minimum vCPUs is the lowest number of active vCPUs (i.e. instances) your compute environment will keep running and available for placing jobs when there are no jobs queued.  Setting this to 0 means that AWS Batch will terminate all instances when all queued jobs are complete.
+    !!! info
+        **Minimum vCPUs** is the lowest number of active vCPUs (i.e. instances) your compute environment will keep running and available for placing jobs when there are no jobs queued.  Setting this to 0 means that AWS Batch will terminate all instances when all queued jobs are complete.
 
-    Desired vCPUs is the number of active vCPUs (i.e. instances) that are currently needed in the compute environment to process queued jobs.  Setting this to 0 implies that there are currently no queued jobs.  AWS Batch will adjust this number based on the number of jobs queued and their resource requirements.
+        **Desired vCPUs** is the number of active vCPUs (i.e. instances) that are currently needed in the compute environment to process queued jobs.  Setting this to 0 implies that there are currently no queued jobs.  AWS Batch will adjust this number based on the number of jobs queued and their resource requirements.
 
-    Maximum vCPUs is the highest number of active vCPUs (i.e. instances) your compute environment will launch.  This places a limit on the number of jobs the compute environment can process in parallel.
+        **Maximum vCPUs** is the highest number of active vCPUs (i.e. instances) your compute environment will launch.  This places a limit on the number of jobs the compute environment can process in parallel.
 
-For networking, the options are populated with your account's default VPC, public subnets, and security group.  This should be sufficient for the purposes of this workshop.  In a production setting, it is recommended to use a separate VPC, private subnets therein, and associated security groups.
-
-Optional: (Recommended) Add EC tags.  These will help identify which EC2 instances were launched by AWS Batch.  At minimum:  
-
-* Key: "Name"
-* Value: "batch-ondemand-worker"
+12. For networking, the options are populated with your account's default VPC, public subnets, and security group.  This should be sufficient for the purposes of this workshop.  In a production setting, it is recommended to use a separate VPC, private subnets therein, and associated security groups.
+13. Add EC2 tags. These will help us identify which EC2 instances were launched by AWS Batch. At minimum, type "Name" as the "Key" and "batch-ondemand-worker" as "Value".
   
-Click on "Create"
+Click on the "Create" button to start the process.
+
+The Batch console will display the newly created "ondemand" environment with the "CREATING" status. We'll proceed with the next environment. 
 
 ### Create an "optimal" spot compute environment
 
 1. Go to the AWS Batch Console
-2. Click on "Compute environments"
-3. Click on "Create environment"
+2. Click on "Compute environments" in the left sidebar
+3. Click on "Create environment" button
 4. Select "Managed" as the "Compute environment type"
 5. For "Compute environment name" type: "spot"
 6. In the "Service role" drop down, select the `AWSBatchServiceRole` you created previously
 7. In the "Instance role" drop down, select the `ecsInstanceRole` you created previously
 8. For "Provisioning model" select "Spot"
-9. In the "Spot fleet role" drop down, select the `AWSSpotFleetTaggingRole` you created previously
-10. "Allowed instance types" will be already populated with "optimal" - which is a mixture of M4, C4, and R4 instances.
-11. In the "Launch template" drop down, select the `genomics-workflow-template` you created previously
-12. Set Minimum and Desired vCPUs to 0.
-
-For networking, the options are populated with your account's default VPC, public subnets, and security group.  This should be sufficient for the purposes of this workshop.  In a production setting, it is recommended to use a separate VPC, private subnets therein, and associated security groups.
-
-Optional: (Recommended) Add EC tags.  These will help identify which EC2 instances were launched by AWS Batch.  At minimum:  
-
-* Key: "Name"
-* Value: "batch-spot-worker"
+9. Verify that "Allowed instance types" is already populated with "optimal" - which is a mixture of M4, C4, and R4 instances
+10. In the "Allocation strategy" drop down, select the "BEST_FIT" option to leverage the lowest priced instances available
+11. In the "Spot fleet role" drop down, select the `AWSSpotFleetTaggingRole` you created previously
+12. In the "Launch template" drop down, select the `genomics-workflow-template` you created previously
+13. Set Minimum and Desired vCPUs to 0.
+14. For networking, the options are pre-populated with your account's default VPC, public subnets, and security group.  This should be sufficient for the purposes of this workshop.  In a production setting, it is recommended to use a separate VPC, private subnets therein, and associated security groups.
+15. Add EC tags. These will help us identify which EC2 instances were launched by AWS Batch. At minimum, type "Name" as the "Key" and "batch-spot-worker" as "Value".
   
-Click on "Create"
+Click on the "Create" button to start the process.
+
+The Batch console will display both environments. At this time the "ondemand" should have a "VALID" status, whereas the "spot" environment will be listed as "CREATING". 
 
 ## Batch Job Queues
 
-AWS Batch job queues, are where you submit and monitor the status of jobs.
+We will use AWS Batch job queues to submit and monitor the status of the jobs for this workshop. 
 Job queues can be associated with one or more compute environments in a preferred order.
 Multiple job queues can be associated with the same compute environment.  Thus to handle scheduling, job queues also have a priority weight as well.
 
 Below we'll create two job queues:
 
- * A "Default" job queue
- * A "High Priority" job queue
+* A "Default" job queue
+* A "High Priority" job queue
 
 Both job queues will use both compute environments you created previously.
 
@@ -384,11 +380,12 @@ Because it primarily leverages Spot instances, it will also be the most cost eff
     1. Select the "spot" compute environment you created previously, then
     2. Select the "ondemand" compute environment you created previously
 
+* Make sure they are in the right order (1 - spot, 2 - ondemand). If you accidentally selected them in a different order, you can rearrange them using the arrows in the "Order" column.
 * Click on "Create Job Queue"
 
 ### Create a "high-priority" job queue
 
-This queue is intended for jobs that are urgent and can handle potential interruption.
+This queue is intended for jobs that are urgent and **cannot** handle interruption.
 Thus queue will schedule jobs to:
 
 1. The "ondemand" compute environment
@@ -406,4 +403,5 @@ in that order.
     1. Select the "ondemand" compute environment you created previously, then
     2. Select the "spot" compute environment you created previously
 
+* This is similar with the "default" queue previously created, just that this time we have the environments in the reverse order.
 * Click on "Create Job Queue"
