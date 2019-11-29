@@ -212,7 +212,7 @@ AWS Batch supports both custom AMIs and EC2 Launch Templates as methods to boots
     For faster results, you can specify the AMI-Id directly.  You can look up the specific AMI-Id for your region [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html).
 
 !!! warning "Amazon Linux Version"
-    The tooling for this solution currently only supports Amazon Linux 1.  Make sure you select the correct version of the Amazon ECS Optimized AMI that is based on Amazon Linux 2.
+    The tooling for this solution currently only supports Amazon Linux 1.  Make sure you select the correct version of the Amazon ECS Optimized AMI that is based on Amazon Linux 1.
 
 * Under "Storage volumes"
   
