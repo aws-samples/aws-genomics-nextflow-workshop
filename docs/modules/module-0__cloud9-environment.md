@@ -109,3 +109,12 @@ When the above is complete you should see something like the following:
 Nextflow installation completed. Please note:
 - the executable file `nextflow` has been created in the folder: /home/ec2-user/bin
 ```
+
+If you don't, another way to verify that you have Nextflow correctly installed is:
+
+```bash
+which nextflow
+
+# the above should return:
+# ~/bin/nextflow
+```

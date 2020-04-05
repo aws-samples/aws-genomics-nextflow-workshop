@@ -22,3 +22,7 @@ Attendees are expected to:
 * have familiarity with genomics data formats such as FASTQ, BAM, and VCF
 * have familiarity with genomics secondary analysis steps and tooling
 * have familiarity with Nextflow and its domain specific workflow language
+
+## Downloads
+
+[re:Invent 2019 - CMP412 session slides](./downloads/reInvent-2019_CMP412_genomics-pipelines-nextflow.pdf)

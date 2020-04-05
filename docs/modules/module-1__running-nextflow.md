@@ -28,7 +28,7 @@ Sometimes these requirements are beyond what a laptop or a single EC2 instance c
 A more cost effective method is to provision compute resources dynamically, as they are needed for each step of the workflow.
 This is what AWS Batch is good at doing.
 
-Here we'll use the AWS Resources that were created ahead of time in your account.  (These match the resources described in [Module 1](./module-2__aws-resources).
+Here we'll use the AWS Resources that were created ahead of time in your account.  (These match the resources described in [Module 2](./module-2__aws-resources.md)).
 
 To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes) you'll need to know the following:
 
