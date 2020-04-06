@@ -537,15 +537,29 @@ You can check the status of the workflow via the following command line where yo
 aws batch describe-jobs --jobs JOBID --query 'jobs[0].status'
 ```
 
-You can also check the log output from the workflow:
+#### Run a different version of the workflow
 
-1. Go to the AWS Batch Console
-2. Click on "Jobs"
-3. Select "highpriority" in the Queue dropdown
-4. Click on the "RUNNING" Status
-5. Click on the Job that matches the JobId above
-6. Scroll to the bottom of the Job Info and click on "View logs for the most recent attempt in the CloudWatch console"
-7. You should now be in "CloudWatch Logs" console looking at the log stream for the AWS Batch job running your nextflow workflow.
+When calling a workflow from a Git repository (such as GitHub), you can also run different versions of the workflow by referencing tagged commits or branches.
+
+The following will call a version of the demo workflow that uses dynamic parallelism to call variants on chromosomes 19-22 simultaneously.
+
+```bash
+./submit-workflow.sh demo-parallel \
+  wleepang/demo-genomics-workflow-nextflow -r dynamic-parallelism --chromosomes chr19,chr20,chr21,chr22
+```
+
+When this workflow reaches the variant call step, it will spawn 4 simultaneous jobs - one for each `chr##` provided to the `--chromosomes` argument.
+
+#### Resuming a workflow
+
+If your workflow stops midway through, you can restart it from where you left off with the `-resume` flag.  This is useful when developing a workflow, allowing you to "cache" the results of long running steps.
+
+```bash
+./submit-workflow.sh demo \
+  wleepang/demo-genomics-workflow -resume (<session-name>|<session-id>)
+```
+
+You can get the session-name or session-id from the logs for a previous run of the workflow.  The "resumed" workflow should complete in only a few seconds.
 
 ### Run an NF-Core workflow
 
