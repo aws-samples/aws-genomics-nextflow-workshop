@@ -33,6 +33,7 @@ Here we'll use the AWS Resources that were created ahead of time in your account
 !!! important
     Run the following to "pre-warm" your AWS Batch compute environments.  This sets each of the compute environments with a Minimum vCPU count > 0 so that it has compute resources immediately available so that queued jobs get scheduled faster.
 
+        cd ~/environment/nextflow-workshop
         ./prewarm.sh
     
     When Mininum vCPUs is set to 0, AWS Batch automatically scales down (terminates) all instances when there are no longer jobs queued.  It can take up to 10min for new vCPUs to spin up after a scale down event.
@@ -500,6 +501,22 @@ Output from this script would look like this:
 #     "jobId": "ecb9a154-92a9-4b9f-99d5-f3071acb7768"
 # }
 ```
+
+#### Getting workflow logs
+
+AWS Batch jobs automatically record logs to CloudWatch Logs.  What is recorded depends on the container called by the job, but generally this is anything that is sent to STDOUT.  These logs are helpful if you want to check on the runtime details of your workflow or inspect error messages if any of the processes in your workflow fails.
+
+To get the logs for an entire workflow:
+
+1. Go to the AWS Batch Console
+2. Click on "Jobs"
+3. Select "highpriority" in the Queue dropdown
+4. Select either "running", "succeeded", or "failed" for the job status table
+5. Click on the Job ID of the workflow job you are interested in
+6. Scroll to the bottom of the sidebar that opens and click on the link under the "CloudWatch logs" section.  This will open a new tab with the CloudWatch Logstream for the workflow.
+
+!!! note
+    To get the logs for a specific job in a workflow, you repeat the above steps, but look for jobs in the "default" job queue instead, as this is where `nextflow` will submit jobs for workflow processes (unless specifically overriden).
 
 ### Run a realistic demo workflow
 
