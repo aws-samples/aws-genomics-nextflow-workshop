@@ -10,7 +10,7 @@ There are a couple key ways to run Nextflow:
 
 ## Local master and jobs
 
-You can run Nextflow workflows entire on a single compute instance.  This can either be your local laptop, or a remote server like an EC2 instance.  in this workshop, your AWS Cloud9 Environment can simulate this scenario.
+You can run Nextflow workflows entire on a single compute instance.  This can either be your local laptop, or a remote server like an EC2 instance.  In this workshop, your AWS Cloud9 Environment simulates this scenario.
 
 In a bash terminal, type the following:
 
@@ -28,8 +28,15 @@ Sometimes these requirements are beyond what a laptop or a single EC2 instance c
 A more cost effective method is to provision compute resources dynamically, as they are needed for each step of the workflow.
 This is what AWS Batch is good at doing.
 
-Here we'll use the AWS Resources that were created ahead of time in your account.  (These match the resources described in [Module 2](./module-2__aws-resources.md)).
+Here we'll use the AWS Resources that were created ahead of time in your account.  (These resources are described in more detail in [Module 2](./module-2__aws-resources.md)).
 
+!!! important
+    Run the following to "pre-warm" your AWS Batch compute environments.  This sets each of the compute environments with a Minimum vCPU count > 0 so that it has compute resources immediately available so that queued jobs get scheduled faster.
+
+        ./prewarm.sh
+    
+    When Mininum vCPUs is set to 0, AWS Batch automatically scales down (terminates) all instances when there are no longer jobs queued.  It can take up to 10min for new vCPUs to spin up after a scale down event.
+        
 To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes) you'll need to know the following:
 
 * The "default" AWS Batch Job Queue workflows will be submitted to
@@ -105,7 +112,10 @@ The benefit of Nextflow on Batch-squared is that since AWS Batch is managing the
 The next two sub-sections walk through how to containerize Nextflow and create an AWS Batch Job Definition to run the container.
 
 !!! info
-    If you are attending an in person workshop, the resources described have already been created in your workshop account.  You can create additional identical resources using the instructions below, but you may need to change the names given to IAM policies, IAM roles, and Batch job definitions.
+    If you are attending an in person workshop, the resources described have already been created in your workshop account.
+    If this is the case, you can **skip ahead** to [Submitting a Nextflow workflow](#submitting-a-nextflow-workflow).
+
+    (Advanced users) You can create additional identical resources using the instructions below, but you may need to change the names given to IAM policies, IAM roles, and Batch job definitions.
 
 ### Containerizing Nextflow
 
@@ -116,7 +126,8 @@ In your AWS Cloud9 environment navigate to the `nextflow-workshop` folder.  Ther
 * `Dockerfile`
 * `nextflow.aws.sh`
 
-If you do not see these files, create them with the following contents:
+If you have these files you can skip ahead to [Build the container](#build-the-container).
+If you do not see these files, create them with the following contents.
 
 #### `Dockerfile`
 
@@ -147,6 +158,12 @@ ENTRYPOINT ["/opt/bin/nextflow.aws.sh"]
 
 #### `nextflow.aws.sh`
 
+A container entrypoint is what is run by default when calling the container with a `docker run` command.  It can either point to a binary executable or a wrapper script in the container.
+In this case, we're using a wrapper script for `nextflow` does a couple of things:
+
+1. It stages `nextflow` session and logging data to S3.  This is important since, running as a container on AWS Batch, this data will be deleted when the container process finishes.  Syncing this data to S3 enables use of the `-resume` flag with `nextflow`.
+2. It also enables projects to be specified as an S3 URI - i.e. a bucket and folder therein where you have staged your Nextflow scripts and supporting files.
+
 ```bash
 #!/bin/bash
 # $1    Nextflow project. Can be an S3 URI, or git repo name.
@@ -157,8 +174,14 @@ ENTRYPOINT ["/opt/bin/nextflow.aws.sh"]
 #  * NF_LOGSDIR: where caching and logging data are stored
 #  * NF_WORKDIR: where intermmediate results are stored
 
+set -e  # fail on any error
 
+echo "=== ENVIRONMENT ==="
+printenv
+
+echo "=== RUN COMMAND ==="
 echo "$@"
+
 NEXTFLOW_PROJECT=$1
 shift
 NEXTFLOW_PARAMS="$@"
@@ -173,6 +196,9 @@ process.executor = "awsbatch"
 process.queue = "$NF_JOB_QUEUE"
 aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
 EOF
+
+echo "=== CONFIGURATION ==="
+cat ~/.nextflow/config
 
 # AWS Batch places multiple jobs on an instance
 # To avoid file path clobbering use the JobID and JobAttempt
@@ -190,10 +216,32 @@ cd /opt/work/$GUID
 # .nextflow directory holds all session information for the current and past runs.
 # it should be `sync`'d with an s3 uri, so that runs from previous sessions can be 
 # resumed
+echo "== Restoring Session Cache =="
 aws s3 sync --only-show-errors $NF_LOGSDIR/.nextflow .nextflow
 
+function preserve_session() {
+    # stage out session cache
+    if [ -d .nextflow ]; then
+        echo "== Preserving Session Cache =="
+        aws s3 sync --only-show-errors .nextflow $NF_LOGSDIR/.nextflow
+    fi
+
+    # .nextflow.log file has more detailed logging from the workflow run and is
+    # nominally unique per run.
+    #
+    # when run locally, .nextflow.logs are automatically rotated
+    # when syncing to S3 uniquely identify logs by the batch GUID
+    if [ -f .nextflow.log ]; then
+        echo "== Preserving Session Log =="
+        aws s3 cp --only-show-errors .nextflow.log $NF_LOGSDIR/.nextflow.log.${GUID/\//.}
+    fi
+}
+
+trap preserve_session EXIT
+
 # stage workflow definition
-if [[ "$NEXTFLOW_PROJECT" =~ "^s3://.*" ]]; then
+if [[ "$NEXTFLOW_PROJECT" =~ ^s3://.* ]]; then
+    echo "== Staging S3 Project =="
     aws s3 sync --only-show-errors --exclude 'runs/*' --exclude '.*' $NEXTFLOW_PROJECT ./project
     NEXTFLOW_PROJECT=./project
 fi
@@ -201,22 +249,10 @@ fi
 echo "== Running Workflow =="
 echo "nextflow run $NEXTFLOW_PROJECT $NEXTFLOW_PARAMS"
 nextflow run $NEXTFLOW_PROJECT $NEXTFLOW_PARAMS
-
-# stage out session cache
-aws s3 sync --only-show-errors .nextflow $NF_LOGSDIR/.nextflow
-
-# .nextflow.log file has more detailed logging from the workflow run and is
-# nominally unique per run.
-#
-# when run locally, .nextflow.logs are automatically rotated
-# when syncing to S3 uniquely identify logs by the batch GUID
-aws s3 cp --only-show-errors .nextflow.log $NF_LOGSDIR/.nextflow.log.${GUID/\//.}
 ```
 
-The entrypoint script does a couple of extra things:
 
-1. It stages `nextflow` session and logging data to S3.  This is important since, running as a container on AWS Batch, this data will be deleted when the container process finishes.  Syncing this data to S3 enables use of the `-resume` flag with `nextflow`.
-2. It also enables projects to be specified as an S3 URI - i.e. a bucket and folder therein where you have staged your Nextflow scripts and supporting files.
+#### Build the container
 
 To build the container, open a bash terminal in AWS Cloud9, `cd` to the directory where the `Dockerfile` and `nextflow.aws.sh` files are and run the following command:
 
@@ -373,10 +409,11 @@ When jobs are complete (either FAILED or SUCCEEDED) you can check the logs gener
 You can also use the AWS CLI to submit workflows.  For example, to run the `nextflow` "hello" workflow, type the following into a bash terminal:
 
 ```bash
+HIGHPRIORITY_JOB_QUEUE=$(aws --region $AWS_REGION batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
 aws batch submit-job \
   --job-definition nextflow \
   --job-name nf-workflow-hello \
-  --job-queue highpriority \
+  --job-queue $HIGHPRIORITY_JOB_QUEUE \
   --container-overrides command=hello
 ```
 
@@ -474,17 +511,13 @@ To submit this workflow you can use the script you created above:
 
 ```bash
 ./submit-workflow.sh demo \
-  wleepang/demo-genomics-workflow-nextflow \
-  --output s3://nextflow-workshop-abc-20190101
+  wleepang/demo-genomics-workflow-nextflow
 ```
-
-!!! note
-    You need to specify a bucket that you have write access to via the `--output` parameter.  Otherwise, the workflow will fail.
 
 You can check the status of the workflow via the following command line where you replace "JOBID" with the "jobId" output from above:
 
 ```bash
-aws batch describe-jobs --jobs JOBID | jq -r .jobs[].status
+aws batch describe-jobs --jobs JOBID --query 'jobs[0].status'
 ```
 
 You can also check the log output from the workflow:
