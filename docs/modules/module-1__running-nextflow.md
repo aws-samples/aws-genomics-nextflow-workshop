@@ -558,7 +558,7 @@ You can do this directly from the command line with:
 ```bash
 ./submit-workflow.sh rnaseq \
   nf-core/rnaseq \
-    --reads "s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz" \
+    --reads "s3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz" \
     --genome GRCh37 \
     --skip_qc
 ```
@@ -571,7 +571,7 @@ Create a json file called `rnaseq.parameters.json` with the following contents:
 {
     "command": [
       "nf-core/rnaseq",
-      "--reads", "'s3://1000genomes/phase3/data/HG00243/sequence_read/SRR*_{1,2}.filt.fastq.gz'",
+      "--reads", "'s3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz'",
       "--genome", "GRCh37",
       "--skip_qc"
     ]
@@ -584,4 +584,4 @@ Submit the workflow using:
 ./submit-workflow.sh rnaseq file://rnaseq.parameters.json
 ```
 
-This workflow takes approximately 3-6hrs to complete.
+This workflow takes approximately 20min to complete.
