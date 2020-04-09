@@ -1,6 +1,6 @@
 # Module 1 - Running Nextflow
 
-There are a couple key ways to run Nextflow:
+There are a several ways to run Nextflow:
 
 *  locally for both the master process and jobs
 *  locally for the master process with AWS Batch for jobs
@@ -15,6 +15,8 @@ You can run Nextflow workflows entire on a single compute instance.  This can ei
 In a bash terminal, type the following:
 
 ```bash
+mkdir -p ~/environment/local
+cd ~/environment/local
 nextflow run hello
 ```
 
@@ -47,14 +49,12 @@ These parameters need to go into a Nextflow config file.
 To create this file, open a bash terminal and run the following:
 
 ```bash
-cd ~/environment
-mkdir -p work
-
-cd ~/environment/work
+mkdir -p ~/environment/dedicated
+cd ~/environment/dedicated
 python ~/environment/nextflow-workshop/create-config.py > nextflow.config
 ```  
 
-This will create a file called `~/environment/work/nextflow.config` with contents like the following:
+This will create a file called `~/environment/dedicated/nextflow.config` with contents like the following:
 
 ```groovy
 workDir = "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/runs"
@@ -66,7 +66,7 @@ aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
 Now when your run the `nextflow` "hello world" example from within this `work` folder:
 
 ```bash
-cd ~/environment/work
+cd ~/environment/dedicated
 nextflow run hello
 ```
 
@@ -100,6 +100,22 @@ executor >  awsbatch (4)
 
 which indicates that workflow processes were run remotely as AWS Batch Jobs and not on the local instance.
 
+Try running some of Nextflow's other demo pipelines:
+
+### rnatoy
+
+```bash
+cd ~/environment/dedicated
+nextflow run rnatoy
+```
+
+### blast-example
+
+```bash
+cd ~/environment/dedicated
+nextflow run blast-example
+```
+
 ## Batch-Squared
 
 ![batch-squared](../images/submitting-workflows-batch-squared.png)
@@ -119,7 +135,7 @@ Let's submit a Nextflow workflow to the Batch-squared architecture, e.g. the `ne
 3. Click "Submit job"
 4. Set "Job name" as "nf-workflow-hello"
 5. For "Job definition" select "nextflow:1"
-6. For "Job queue" select "highpriority".  It is important that the `nextflow` master process not be interrupted for the duration of the workflow
+6. For "Job queue" select "highpriority".  It is important that the `nextflow` master process not be interrupted for the duration of the workflow, so we need to make sure that the job for the master process is placed on an on-demand instance.
 7. In the "Command" field type "hello".  Text here is the same as what would be sent as `...` arguments to a `docker run -it nextflow ...` command
 8. Click "Submit job".
 
@@ -153,7 +169,7 @@ You should get a response like:
 
 which contains the AWS Batch JobId you can use to track progress of the workflow.  To do this, you can use the Jobs view in the AWS Batch Console.
 
-You can also simplify the command by wrapping it in a bash script that gather's key information automatically.
+You can also simplify the command by wrapping it in a bash script that gathers key information automatically.
 
 ```bash
 #!/bin/bash
@@ -217,6 +233,7 @@ ${COMMAND}
 Output from this script would look like this:
 
 ```bash
+cd ~/environment/nextflow-workshop
 ./submit-workflow.sh hello hello
 
 # aws batch submit-job --region us-west-2 --job-definition nextflow --job-name nf-workflow-hello --job-queue highpriority-45e553b0-c840-11e9-bb02-02c3ece5f9fa --container-overrides command='hello'
@@ -225,6 +242,8 @@ Output from this script would look like this:
 #     "jobId": "ecb9a154-92a9-4b9f-99d5-f3071acb7768"
 # }
 ```
+
+Try submitting `rnatoy` and `blast-example` workflows to the Batch-squared architecture.
 
 #### Getting workflow logs
 
@@ -251,6 +270,7 @@ Here is the source code for a demo workflow that converts FASTQ files to VCF usi
 To submit this workflow you can use the script you created above:
 
 ```bash
+cd ~/environment/nextflow-workshop
 ./submit-workflow.sh demo \
   wleepang/demo-genomics-workflow-nextflow
 ```
@@ -268,6 +288,7 @@ When calling a workflow from a Git repository (such as GitHub), you can also run
 The following will call a version of the demo workflow that uses dynamic parallelism to call variants on chromosomes 19-22 simultaneously.
 
 ```bash
+cd ~/environment/nextflow-workshop
 ./submit-workflow.sh demo-parallel \
   wleepang/demo-genomics-workflow-nextflow -r dynamic-parallelism --chromosomes chr19,chr20,chr21,chr22
 ```
@@ -279,6 +300,7 @@ When this workflow reaches the variant call step, it will spawn 4 simultaneous j
 If your workflow stops midway through, you can restart it from where you left off with the `-resume` flag.  This is useful when developing a workflow, allowing you to "cache" the results of long running steps.
 
 ```bash
+cd ~/environment/nextflow-workshop
 ./submit-workflow.sh demo \
   wleepang/demo-genomics-workflow -resume (<session-name>|<session-id>)
 ```
@@ -294,9 +316,10 @@ The steps below runs the nf-core/rnaseq workflow against data from the 1000 Geno
 You can do this directly from the command line with:
 
 ```bash
+cd ~/environment/nextflow-workshop
 ./submit-workflow.sh rnaseq \
   nf-core/rnaseq \
-    --reads "s3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz" \
+    --reads 's3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz' \
     --genome GRCh37 \
     --skip_qc
 ```
@@ -305,21 +328,32 @@ There are many parameters for this workflow, and setting all via the command lin
 
 Create a json file called `rnaseq.parameters.json` with the following contents:
 
-```json
+```bash
+cd ~/environment/nextflow-workshop
+cat <<EOF > rnaseq.parameters.json
 {
     "command": [
       "nf-core/rnaseq",
-      "--reads", "'s3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz'",
+      "--reads", "s3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz",
       "--genome", "GRCh37",
       "--skip_qc"
     ]
 }
+EOF
 ```
 
 Submit the workflow using:
 
 ```bash
+cd ~/environment/nextflow-workshop
 ./submit-workflow.sh rnaseq file://rnaseq.parameters.json
 ```
 
 This workflow takes approximately 20min to complete.
+
+Try running several instances of this workflow to see how AWS Batch scales:
+
+```bash
+cd ~/environment/nextflow-workshop
+for ((i=0;i<20;i++)); do ./submit-workflow.sh rnaseq-${i} file://rnaseq.parameters.json; done
+```

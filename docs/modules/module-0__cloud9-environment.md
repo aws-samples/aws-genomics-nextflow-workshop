@@ -18,11 +18,12 @@ Cloud9 normally manages IAM credentials dynamically. This isn’t currently comp
 
 Associate an administrative role to the EC2 Instance used by Cloud9:
 
-* Go to the AWS EC2 Console
-* Select the instance named **"aws-cloud9-genomics-workflows-xxxxxx"** where "xxxxxx" is the unique id for your Cloud9 environment.
-* In the **Actions** drop-down, select **Instance Settings > Attach/Replace IAM Role**
-* Select the role named **"NextflowAdminInstanceRole"**
-* Click **Apply**
+```bash
+aws ec2 associate-iam-instance-proflie \
+      --iam-instance-profile Name=NextflowAdminInstanceRole \
+      --instance-id $(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+
+```
 
 Disable Cloud9's credentials management:
 
@@ -30,12 +31,6 @@ Disable Cloud9's credentials management:
 * Select **AWS SETTINGS**
 * Turn off **AWS managed teporary credentials**
 * Close the "Preference" tab
-* In a bash terminal tab type the following to remove any existing credentials:
-
-```bash
-rm -vf ~/.aws/credentials
-```
-
 * Verify that credentials are based on the instance role:
 
 ```bash
@@ -64,6 +59,12 @@ echo "export ACCOUNT_ID=${ACCOUNT_ID}" >> ~/.bash_profile
 echo "export AWS_REGION=${AWS_REGION}" >> ~/.bash_profile
 aws configure set default.region ${AWS_REGION}
 aws configure get default.region
+```
+
+Make helper scripts executable:
+
+```bash
+chmod +x *.py *.sh
 ```
 
 Install boto3 for Python 3:
