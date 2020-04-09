@@ -19,7 +19,7 @@ Cloud9 normally manages IAM credentials dynamically. This isn’t currently comp
 Associate an administrative role to the EC2 Instance used by Cloud9:
 
 ```bash
-aws ec2 associate-iam-instance-proflie \
+aws ec2 associate-iam-instance-profile \
       --iam-instance-profile Name=NextflowAdminInstanceRole \
       --instance-id $(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -64,6 +64,7 @@ aws configure get default.region
 Make helper scripts executable:
 
 ```bash
+cd ~/environment/nextflow-workshop
 chmod +x *.py *.sh
 ```
 

@@ -101,9 +101,6 @@ These policies could be used by other roles, so it will be easier to manage if i
 
 #### Bucket access policy
 
-!!! info
-    If you already created this policy in [Module 1 - Running Nextflow](./module-1__running-nextflow.md) you can skip this creating this policy
-
 * Go to the IAM Console
 * Click on "Policies"
 * Click on "Create Policy"
@@ -171,8 +168,9 @@ In this case, you will limit S3 access to just the bucket you created earlier.
 * Return to the search field, clear its content, and type "S3" to search for additional policies for this role
 * Click the checkbox next to "AmazonS3ReadOnlyAccess" to attach the policy
 
-!!! note
-    Enabling Read-Only access to all S3 resources is required if you use publicly available datasets such as the [1000 Genomes dataset](https://registry.opendata.aws/1000-genomes/), and others, available in the [AWS Registry of Open Datasets](https://registry.opendata.aws)
+    !!! note
+        Allowing **Read-Only** access to _all_ S3 resources is used here to enable easy access to all publicly available datasets in the [AWS Registry of Open Datasets](https://registry.opendata.aws) such as the [1000 Genomes dataset](https://registry.opendata.aws/1000-genomes/), [Genome in a Bottle](https://registry.opendata.aws/giab/), and many others. In a production setting, you should scope down this access to just the public datasets you need.
+
 
 * Repeat this process and type "bucket-access-policy" in the search field for policies
 * Click the checkbox next to "bucket-access-policy" you created in the previous steps to attach the policy
@@ -652,3 +650,7 @@ At this point we have everything in place to create a Batch Job Definition for `
 12. Similarly, add the "NF_WORKDIR" environment variable using the same "Value" as above but with the "runs" suffix in place of "logs", such as "s3://nextflow-workshop-abc-20190101/_nextflow/runs"
 13. Add another environment variable "NF_JOB_QUEUE" using as value the "Queue ARN" of the "default" job queue from above
 14. Click "Create Job Definition".
+
+## Finished!
+
+Congratulations, you have just (re)built the infrastructure used by this workshop from scratch!

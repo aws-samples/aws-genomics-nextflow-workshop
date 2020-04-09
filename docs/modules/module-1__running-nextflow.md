@@ -357,3 +357,7 @@ Try running several instances of this workflow to see how AWS Batch scales:
 cd ~/environment/nextflow-workshop
 for ((i=0;i<20;i++)); do ./submit-workflow.sh rnaseq-${i} file://rnaseq.parameters.json; done
 ```
+
+## Finished!
+
+If you've reached this point without issue, CONGRATULATIONS! You have successfully run several Nextflow workflows with scalable, AWS Batch-Squared, architecture!
