@@ -27,7 +27,7 @@ for ce_type in spot ondemand; do
         aws --region $AWS_REGION \
             batch update-compute-environment \
             --compute-environment $ce_name \
-            --compute-resources minvCpus=4,desiredvCpus=4
+            --compute-resources minvCpus=8,desiredvCpus=8
     else
         echo "$ce_type compute environment not found"
     fi
