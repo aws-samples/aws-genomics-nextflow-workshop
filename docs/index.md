@@ -32,4 +32,5 @@ The above links will launch AWS Cloudformation Stacks to build the resources nee
 
 ## Downloads
 
-[re:Invent 2019 - CMP412 session slides](./downloads/reInvent-2019_CMP412_genomics-pipelines-nextflow.pdf)
+* [re:Invent 2019 - CMP412 session slides](./downloads/reInvent-2019_CMP412_genomics-pipelines-nextflow.pdf)
+* [Workshop Slides 2020](./downloads/nextflow-workshop_2020.pdf)
