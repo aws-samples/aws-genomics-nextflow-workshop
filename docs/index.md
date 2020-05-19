@@ -29,3 +29,10 @@ If you are attending this workshop in person, all AWS resources will be created 
 * [Nextflow on AWS Batch](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=Nextflow&templateURL=https://s3.amazonaws.com/pwyming-demo-templates/nextflow-workshop/nextflow/nextflow-aio.template.yaml)
 
 The above links will launch AWS Cloudformation Stacks to build the resources needed for the workshop.
+<<<<<<< HEAD
+=======
+
+## Downloads
+
+* [Workshop Slides 2020](./downloads/nextflow-workshop_2020.pdf)
+>>>>>>> master
