@@ -2,10 +2,9 @@ site_name: Nextflow on AWS
 nav:
 - Introduction: index.md
 - Modules:
-  - 0 - Cloud9 Environment Setup: modules/module-0__cloud9-environment.md
+  - 0 - Environment Setup: modules/module-0__sagemaker-environment.md
   - 1 - Running Nextflow: modules/module-1__running-nextflow.md
   - 2 - AWS Resources: modules/module-2__aws-resources.md
-  - 3 - Automation: modules/module-3__automation.md
 
 extra_css: [extra.css]
 extra_javascript: [extra.js]

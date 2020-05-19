@@ -10,13 +10,13 @@ There are a several ways to run Nextflow:
 
 ## Local master and jobs
 
-You can run Nextflow workflows entire on a single compute instance.  This can either be your local laptop, or a remote server like an EC2 instance.  In this workshop, your AWS Cloud9 Environment simulates this scenario.
+You can run Nextflow workflows entirely on a single compute instance.  This can either be your local laptop, or a remote server like an EC2 instance.  In this workshop, your SageMaker Notebook instance simulates this scenario.
 
 In a bash terminal, type the following:
 
 ```bash
-mkdir -p ~/environment/local
-cd ~/environment/local
+mkdir -p ~/SageMaker/environment/local
+cd ~/SageMaker/environment/local
 nextflow run hello
 ```
 
@@ -30,43 +30,85 @@ Sometimes these requirements are beyond what a laptop or a single EC2 instance c
 A more cost effective method is to provision compute resources dynamically, as they are needed for each step of the workflow.
 This is what AWS Batch is good at doing.
 
-Here we'll use the AWS Resources that were created ahead of time in your account.  (These resources are described in more detail in [Module 2](./module-2__aws-resources.md)).
+Here we'll use the AWS Resources that were created by the Nextflow Quickstart.  (These resources are described in more detail in [Module 2](./module-2__aws-resources.md)).
 
 !!! important
-    Run the following to "pre-warm" your AWS Batch compute environments.  This sets each of the compute environments with a Minimum vCPU count > 0 so that it has compute resources immediately available so that queued jobs get scheduled faster.
-
-        cd ~/environment/nextflow-workshop
-        ./prewarm.sh
+    For the following demonstrations it is recommended to to "pre-warm" your AWS Batch compute environments by setting each of the compute environments with a Minimum vCPU count > 0 so that it has compute resources immediately available so that queued jobs get scheduled faster.
     
     When Mininum vCPUs is set to 0, AWS Batch automatically scales down (terminates) all instances when there are no longer jobs queued.  It can take up to 10min for new vCPUs to spin up after a scale down event.
-        
+    
 To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes) you'll need to know the following:
 
 * The "default" AWS Batch Job Queue workflows will be submitted to
 * The S3 path that will be used as your nextflow working directory
 
-These parameters need to go into a Nextflow config file.
-To create this file, open a bash terminal and run the following:
+These parameters need to go into a Nextflow config file.  To create this file:
+
+Go to your terminal tab and run the following:
 
 ```bash
-mkdir -p ~/environment/dedicated
-cd ~/environment/dedicated
-python ~/environment/nextflow-workshop/create-config.py > nextflow.config
+mkdir -p ~/SageMaker/environment/dedicated
 ```  
 
-This will create a file called `~/environment/dedicated/nextflow.config` with contents like the following:
+Navigate to the `environment/dedicated` directory in the JupyterLab file explorer and create a pytho script called `create-config.py` with the following contents:
+
+```python
+#!/usr/bin/env python
+
+import boto3
+
+batch = boto3.client('batch')
+
+jobdefs = batch.describe_job_definitions(jobDefinitionName="nextflow")['jobDefinitions']
+latest = max([jobdef['revision'] for jobdef in jobdefs])
+
+jobdef = list(filter(lambda j: j['revision'] == latest, jobdefs))[0]
+env_vars = jobdef['containerProperties']['environment']
+
+# retrieve export values that are needed for configuring nextflow
+env = {
+    "nf_workdir": None,
+    "nf_job_queue": None,
+}
+
+def get_value(env_vars, name):
+    for var in env_vars:
+        if var['name'].lower() == name.lower():
+            return {name: var['value']}
+
+env.update(get_value(env_vars, 'nf_workdir'))
+env.update(get_value(env_vars, 'nf_job_queue'))
+
+config_tpl = """
+workDir = "{nf_workdir}"
+process.executor = "awsbatch"
+process.queue = "{nf_job_queue}"
+aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
+"""
+
+print(config_tpl.format(**env).strip())
+```
+
+go to your terminal tab and run the following:
+
+```bash
+cd ~/SageMaker/environment/dedicated
+python create-config.py > ~/SageMaker/environment/dedicated/nextflow.config
+```  
+
+This will create a file called `~/SageMaker/environment/dedicated/nextflow.config` with contents like the following:
 
 ```groovy
-workDir = "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/runs"
+workDir = "s3://<s3-bucket-name>/_nextflow/runs"
 process.executor = "awsbatch"
-process.queue = "arn:aws:batch:us-west-2:123456789012:job-queue/default-45e553b0-c840-11e9-bb02-02c3ece5f9fa"
+process.queue = "arn:aws:batch:us-west-2:123456789012:job-queue/<default-job-queue-name>"
 aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
 ```
 
-Now when your run the `nextflow` "hello world" example from within this `work` folder:
+Now when your run the `nextflow` "hello world" example from within this folder:
 
 ```bash
-cd ~/environment/dedicated
+cd ~/SageMaker/environment/dedicated
 nextflow run hello
 ```
 
@@ -100,21 +142,39 @@ executor >  awsbatch (4)
 
 which indicates that workflow processes were run remotely as AWS Batch Jobs and not on the local instance.
 
-Try running some of Nextflow's other demo pipelines:
+!!! note
+    If you get an error like the following:
+
+        Access Denied (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; ...
+    
+    You'll need to edit the `Nextflow-JupyterRole-*` in IAM to allow read/write access to the S3 URI specified in `workDir` in your `nextflow.config` file.
+
+Next, try running some of Nextflow's other demo pipelines:
 
 ### rnatoy
 
+A simple RNAseq example
+
 ```bash
-cd ~/environment/dedicated
+cd ~/SageMaker/environment/dedicated
 nextflow run rnatoy
 ```
 
+Source: [https://github.com/nextflow-io/rnatoy]()
+
 ### blast-example
 
+An example of running BLAST
+
 ```bash
-cd ~/environment/dedicated
+cd ~/SageMaker/environment/dedicated
 nextflow run blast-example
 ```
+
+Source: [https://github.com/nextflow-io/blast-example]()
+
+!!! info
+    A unique feature of Nextflow is that it can run workflows directly from Git repositories. The `hello`, `rnatoy`, and `blast-example` workflows are all public repositories on Github. You can also access private Git repositories hosted on Gitlab, BitBucket, and Gitea. See [Nextflow's documentation](https://www.nextflow.io/docs/latest/sharing.html) for more info.
 
 ## Batch-Squared
 
@@ -150,12 +210,13 @@ When jobs are complete (either FAILED or SUCCEEDED) you can check the logs gener
 You can also use the AWS CLI to submit workflows.  For example, to run the `nextflow` "hello" workflow, type the following into a bash terminal:
 
 ```bash
-HIGHPRIORITY_JOB_QUEUE=$(aws --region $AWS_REGION batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
+WORKFLOW_NAME=hello
+HIGHPRIORITY_JOB_QUEUE=$(aws batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
 aws batch submit-job \
   --job-definition nextflow \
-  --job-name nf-workflow-hello \
+  --job-name nf-workflow-$WORKFLOW_NAME \
   --job-queue $HIGHPRIORITY_JOB_QUEUE \
-  --container-overrides command=hello
+  --container-overrides command=$WORKFLOW_NAME
 ```
 
 You should get a response like:
@@ -171,29 +232,43 @@ which contains the AWS Batch JobId you can use to track progress of the workflow
 
 You can also simplify the command by wrapping it in a bash script that gathers key information automatically.
 
+In the terminal type:
+
+```bash
+mkdir -p ~/SageMaker/environment/batch-squared
+touch ~/SageMaker/environment/batch-squared/submit.sh
+chmod +x ~/SageMaker/environment/batch-squared/submit.sh
+```
+
+Navigate to the `environment/batch-squared` directory in the JupyterLab file explorer, open the `submit.sh` file, and paste in the following contents:
+
 ```bash
 #!/bin/bash
 
 # Helper script for submitting nextflow workflows to Batch-squared architecture
 # Workflows are submitted to the first "highpriority" Batch Job Queue found in
 # in the default AWS region configured for the user.
-#
-# Usage:
-# submit-workflow.sh WORKFLOW_NAME (file://OVERRIDES_JSON | (CONTAINER_ARGS ...))
-#
-# Examples:
-# submit-workflow.sh hello file://hello.overrides.json
-# submit-workflow.sh hello hello
+
+PROG=$0
+USAGE=$(cat <<_USAGE
+Usage:
+    $PROG WORKFLOW_NAME (file://OVERRIDES_JSON | (CONTAINER_ARGS ...))
+
+Examples:
+    $PROG hello file://hello.overrides.json
+    $PROG hello hello
+    $PROG project user/project --foo --bar ...
+_USAGE
+)
+
+if [ "$#" -lt 1 ]; then
+    echo "$USAGE"
+    exit 1
+fi
 
 WORKFLOW_NAME=$1  # custom name for workflow
 shift
 PARAMS=("$@")     # args or path to json file for job overrides, e.g. file://path/to/overrides.json
-
-# assume that the default region is set as a global environment variable
-# alternatively get it using `aws configure get default.region`
-if [ -z "$AWS_REGION" ]; then
-    AWS_REGION=`aws configure get default.region`
-fi
 
 if [[ ${PARAMS[0]} == file://* ]]; then
     # user provided a file path to an overrides json
@@ -207,7 +282,7 @@ else
 fi
 
 # get the name of the high-priority queue
-HIGHPRIORITY_JOB_QUEUE=$(aws --region $AWS_REGION batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
+HIGHPRIORITY_JOB_QUEUE=$(aws batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
 
 if [ -z "$HIGHPRIORITY_JOB_QUEUE" ]; then
     echo "no highpriority job queue found"
@@ -218,7 +293,6 @@ fi
 # command is printed to stdout for debugging
 COMMAND=$(cat <<EOF
 aws batch submit-job \
-    --region $AWS_REGION \
     --job-definition nextflow \
     --job-name nf-workflow-${WORKFLOW_NAME} \
     --job-queue ${HIGHPRIORITY_JOB_QUEUE} \
@@ -230,20 +304,20 @@ echo $COMMAND
 ${COMMAND}
 ```
 
-Output from this script would look like this:
+Using this script to submit the `hello` workflow would look like this:
 
 ```bash
-cd ~/environment/nextflow-workshop
-./submit-workflow.sh hello hello
+cd ~/SageMaker/environment/batch-squared
+./submit.sh hello hello
 
-# aws batch submit-job --region us-west-2 --job-definition nextflow --job-name nf-workflow-hello --job-queue highpriority-45e553b0-c840-11e9-bb02-02c3ece5f9fa --container-overrides command='hello'
+# aws batch submit-job --job-definition nextflow --job-name nf-workflow-hello --job-queue highpriority-45e553b0-c840-11e9-bb02-02c3ece5f9fa --container-overrides command='hello'
 # {
 #     "jobName": "nf-workflow-hello", 
 #     "jobId": "ecb9a154-92a9-4b9f-99d5-f3071acb7768"
 # }
 ```
 
-Try submitting `rnatoy` and `blast-example` workflows to the Batch-squared architecture.
+Now try submitting `rnatoy` and `blast-example` workflows to the Batch-squared architecture.
 
 #### Getting workflow logs
 
@@ -270,7 +344,7 @@ Here is the source code for a demo workflow that converts FASTQ files to VCF usi
 To submit this workflow you can use the script you created above:
 
 ```bash
-cd ~/environment/nextflow-workshop
+cd ~/SageMaker/environment/batch-squared
 ./submit-workflow.sh demo \
   wleepang/demo-genomics-workflow-nextflow
 ```
@@ -288,7 +362,7 @@ When calling a workflow from a Git repository (such as GitHub), you can also run
 The following will call a version of the demo workflow that uses dynamic parallelism to call variants on chromosomes 19-22 simultaneously.
 
 ```bash
-cd ~/environment/nextflow-workshop
+cd ~/SageMaker/environment/batch-squared
 ./submit-workflow.sh demo-parallel \
   wleepang/demo-genomics-workflow-nextflow -r dynamic-parallelism --chromosomes chr19,chr20,chr21,chr22
 ```
@@ -300,7 +374,7 @@ When this workflow reaches the variant call step, it will spawn 4 simultaneous j
 If your workflow stops midway through, you can restart it from where you left off with the `-resume` flag.  This is useful when developing a workflow, allowing you to "cache" the results of long running steps.
 
 ```bash
-cd ~/environment/nextflow-workshop
+cd ~/SageMaker/environment/batch-squared
 ./submit-workflow.sh demo \
   wleepang/demo-genomics-workflow -resume (<session-name>|<session-id>)
 ```
@@ -316,7 +390,7 @@ The steps below runs the nf-core/rnaseq workflow against data from the 1000 Geno
 You can do this directly from the command line with:
 
 ```bash
-cd ~/environment/nextflow-workshop
+cd ~/SageMaker/environment/batch-squared
 ./submit-workflow.sh rnaseq \
   nf-core/rnaseq \
     --reads 's3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz' \
@@ -345,7 +419,7 @@ EOF
 Submit the workflow using:
 
 ```bash
-cd ~/environment/nextflow-workshop
+cd ~/SageMaker/environment/batch-squared
 ./submit-workflow.sh rnaseq file://rnaseq.parameters.json
 ```
 
@@ -354,10 +428,16 @@ This workflow takes approximately 20min to complete.
 Try running several instances of this workflow to see how AWS Batch scales:
 
 ```bash
-cd ~/environment/nextflow-workshop
+cd ~/SageMaker/environment/batch-squared
 for ((i=0;i<20;i++)); do ./submit-workflow.sh rnaseq-${i} file://rnaseq.parameters.json; done
 ```
 
 ## Finished!
 
 If you've reached this point without issue, CONGRATULATIONS! You have successfully run several Nextflow workflows with scalable, AWS Batch-Squared, architecture!
+
+### What you learned
+
+* There are three ways to run Nextflow, each with different levels of interactivity, compute power, and scalability
+* Nextflow provides a lot of flexibility with where workflow definitions are stored and where they are ultimately run. Because you can source workflows directly from Git repositories, you can incorporate DevOps principles (like continuous integration and continuous deployment) into your workflow development
+* The Nextflow community provides a lot of resources to help you develop your bioinformatics pipelines - even if you are just getting started
