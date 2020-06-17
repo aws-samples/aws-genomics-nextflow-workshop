@@ -334,42 +334,13 @@ You can get the session-name or session-id from the logs for a previous run of t
 
 There are many example workflows available via [NF-Core](https://nf-co.re).  These are workflows that are developed using best practices from the Nextflow community.  They are also good starting points to run common analyses such as ATACSeq or RNASeq.
 
-The steps below runs the nf-core/rnaseq workflow against data from the 1000 Genomes dataset.
+The steps below runs the nf-core/rnaseq workflow using a small test dataset.
 
 You can do this directly from the command line with:
 
 ```bash
 cd ~/environment/nextflow-workshop
-./submit-workflow.sh rnaseq \
-  nf-core/rnaseq \
-    --reads 's3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz' \
-    --genome GRCh37 \
-    --skip_qc
-```
-
-There are many parameters for this workflow, and setting all via the command line can be cumbersome.  For more complex configurations, it is best to package the container overrides into a JSON file.  To do this for the above workflow configuration:
-
-Create a json file called `rnaseq.parameters.json` with the following contents:
-
-```bash
-cd ~/environment/nextflow-workshop
-cat <<EOF > rnaseq.parameters.json
-{
-    "command": [
-      "nf-core/rnaseq",
-      "--reads", "s3://pwyming-demo-data/secondary-analysis/fastq/demo/NIST7035_R{1,2}_trim_samp-0p1.fastq.gz",
-      "--genome", "GRCh37",
-      "--skip_qc"
-    ]
-}
-EOF
-```
-
-Submit the workflow using:
-
-```bash
-cd ~/environment/nextflow-workshop
-./submit-workflow.sh rnaseq file://rnaseq.parameters.json
+./submit-workflow.sh rnaseq nf-core/rnaseq -profile test
 ```
 
 This workflow takes approximately 20min to complete.
@@ -378,7 +349,7 @@ Try running several instances of this workflow to see how AWS Batch scales:
 
 ```bash
 cd ~/environment/nextflow-workshop
-for ((i=0;i<20;i++)); do ./submit-workflow.sh rnaseq-${i} file://rnaseq.parameters.json; done
+for ((i=0;i<20;i++)); do ./submit-workflow.sh rnaseq-${i} nf-core/rnaseq -profile test; done
 ```
 
 ## Finished!
