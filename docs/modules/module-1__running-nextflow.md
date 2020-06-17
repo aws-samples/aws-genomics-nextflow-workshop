@@ -39,14 +39,15 @@ Here we'll use the AWS Resources that were created ahead of time in your account
         ./prewarm.sh
     
     When Mininum vCPUs is set to 0, AWS Batch automatically scales down (terminates) all instances when there are no longer jobs queued.  It can take up to 10min for new vCPUs to spin up after a scale down event.
-        
+    
 To configure your local Nextflow installation to use AWS Batch for workflow steps (aka jobs, or processes) you'll need to know the following:
 
 * The "default" AWS Batch Job Queue workflows will be submitted to
 * The S3 path that will be used as your nextflow working directory
 
-These parameters need to go into a Nextflow config file.
-To create this file, open a bash terminal and run the following:
+These parameters need to go into a Nextflow config file.  To create this file:
+
+Go to your terminal tab and run the following:
 
 ```bash
 mkdir -p ~/environment/dedicated
@@ -57,13 +58,13 @@ python ~/environment/nextflow-workshop/create-config.py > nextflow.config
 This will create a file called `~/environment/dedicated/nextflow.config` with contents like the following:
 
 ```groovy
-workDir = "s3://genomics-workflows-cfa71800-c83f-11e9-8cd7-0ae846f1e916/_nextflow/runs"
+workDir = "s3://<s3-bucket-name>/_nextflow/runs"
 process.executor = "awsbatch"
-process.queue = "arn:aws:batch:us-west-2:123456789012:job-queue/default-45e553b0-c840-11e9-bb02-02c3ece5f9fa"
+process.queue = "arn:aws:batch:us-west-2:123456789012:job-queue/<default-job-queue-name>"
 aws.batch.cliPath = "/home/ec2-user/miniconda/bin/aws"
 ```
 
-Now when your run the `nextflow` "hello world" example from within this `work` folder:
+Now when your run the `nextflow` "hello world" example from within this folder:
 
 ```bash
 cd ~/environment/dedicated
@@ -104,17 +105,28 @@ Try running some of Nextflow's other demo pipelines:
 
 ### rnatoy
 
+A simple RNAseq example
+
 ```bash
 cd ~/environment/dedicated
 nextflow run rnatoy
 ```
 
+Source: [https://github.com/nextflow-io/rnatoy]()
+
 ### blast-example
+
+An example of running BLAST
 
 ```bash
 cd ~/environment/dedicated
 nextflow run blast-example
 ```
+
+Source: [https://github.com/nextflow-io/blast-example]()
+
+!!! info
+    A unique feature of Nextflow is that it can run workflows directly from Git repositories. The `hello`, `rnatoy`, and `blast-example` workflows are all public repositories on Github. You can also access private Git repositories hosted on Gitlab, BitBucket, and Gitea. See [Nextflow's documentation](https://www.nextflow.io/docs/latest/sharing.html) for more info.
 
 ## Batch-Squared
 
@@ -150,12 +162,13 @@ When jobs are complete (either FAILED or SUCCEEDED) you can check the logs gener
 You can also use the AWS CLI to submit workflows.  For example, to run the `nextflow` "hello" workflow, type the following into a bash terminal:
 
 ```bash
-HIGHPRIORITY_JOB_QUEUE=$(aws --region $AWS_REGION batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
+WORKFLOW_NAME=hello
+HIGHPRIORITY_JOB_QUEUE=$(aws batch describe-job-queues | jq -r .jobQueues[].jobQueueName | grep highpriority)
 aws batch submit-job \
   --job-definition nextflow \
-  --job-name nf-workflow-hello \
+  --job-name nf-workflow-$WORKFLOW_NAME \
   --job-queue $HIGHPRIORITY_JOB_QUEUE \
-  --container-overrides command=hello
+  --container-overrides command=$WORKFLOW_NAME
 ```
 
 You should get a response like:
@@ -177,13 +190,23 @@ You can also simplify the command by wrapping it in a bash script that gathers k
 # Helper script for submitting nextflow workflows to Batch-squared architecture
 # Workflows are submitted to the first "highpriority" Batch Job Queue found in
 # in the default AWS region configured for the user.
-#
-# Usage:
-# submit-workflow.sh WORKFLOW_NAME (file://OVERRIDES_JSON | (CONTAINER_ARGS ...))
-#
-# Examples:
-# submit-workflow.sh hello file://hello.overrides.json
-# submit-workflow.sh hello hello
+
+PROG=$0
+USAGE=$(cat <<_USAGE
+Usage:
+    $PROG WORKFLOW_NAME (file://OVERRIDES_JSON | (CONTAINER_ARGS ...))
+
+Examples:
+    $PROG hello file://hello.overrides.json
+    $PROG hello hello
+    $PROG project user/project --foo --bar ...
+_USAGE
+)
+
+if [ "$#" -lt 1 ]; then
+    echo "$USAGE"
+    exit 1
+fi
 
 WORKFLOW_NAME=$1  # custom name for workflow
 shift
@@ -230,7 +253,7 @@ echo $COMMAND
 ${COMMAND}
 ```
 
-Output from this script would look like this:
+Using this script to submit the `hello` workflow would look like this:
 
 ```bash
 cd ~/environment/nextflow-workshop
@@ -243,7 +266,7 @@ cd ~/environment/nextflow-workshop
 # }
 ```
 
-Try submitting `rnatoy` and `blast-example` workflows to the Batch-squared architecture.
+Now try submitting `rnatoy` and `blast-example` workflows to the Batch-squared architecture.
 
 #### Getting workflow logs
 
@@ -361,3 +384,9 @@ for ((i=0;i<20;i++)); do ./submit-workflow.sh rnaseq-${i} file://rnaseq.paramete
 ## Finished!
 
 If you've reached this point without issue, CONGRATULATIONS! You have successfully run several Nextflow workflows with scalable, AWS Batch-Squared, architecture!
+
+### What you learned
+
+* There are three ways to run Nextflow, each with different levels of interactivity, compute power, and scalability
+* Nextflow provides a lot of flexibility with where workflow definitions are stored and where they are ultimately run. Because you can source workflows directly from Git repositories, you can incorporate DevOps principles (like continuous integration and continuous deployment) into your workflow development
+* The Nextflow community provides a lot of resources to help you develop your bioinformatics pipelines - even if you are just getting started

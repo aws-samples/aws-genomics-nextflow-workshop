@@ -23,13 +23,9 @@ Attendees are expected to:
 * have familiarity with genomics secondary analysis steps and tooling
 * have familiarity with Nextflow and its domain specific workflow language
 
-If you are attending this workshop in person, all AWS resources will be created for you in an event account.  Otherwise you can create resources in your account and run through the workshop at your own pace with the following:
+If you are attending this workshop in person at a hosted AWS Event, all AWS resources will be created for you in an event account.  Otherwise you can create resources in your account and run through the workshop at your own pace with the following:
 
 * [AWS Cloud9 Environment](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=Nextflow&templateURL=https://s3.amazonaws.com/pwyming-demo-templates/nextflow-workshop/cloud9.cfn.yaml)
 * [Nextflow on AWS Batch](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=Nextflow&templateURL=https://s3.amazonaws.com/pwyming-demo-templates/nextflow-workshop/nextflow/nextflow-aio.template.yaml)
 
 The above links will launch AWS Cloudformation Stacks to build the resources needed for the workshop.
-
-## Downloads
-
-* [Workshop Slides 2020](./downloads/nextflow-workshop_2020.pdf)
