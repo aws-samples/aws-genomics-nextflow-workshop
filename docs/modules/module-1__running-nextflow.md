@@ -334,7 +334,7 @@ You can get the session-name or session-id from the logs for a previous run of t
 
 There are many example workflows available via [NF-Core](https://nf-co.re).  These are workflows that are developed using best practices from the Nextflow community.  They are also good starting points to run common analyses such as ATACSeq or RNASeq.
 
-The steps below runs the nf-core/rnaseq workflow using a small test dataset.
+The steps below runs the [nf-core/rnaseq](https://nf-co.re/rnaseq) workflow using a small test dataset.
 
 You can do this directly from the command line with:
 
