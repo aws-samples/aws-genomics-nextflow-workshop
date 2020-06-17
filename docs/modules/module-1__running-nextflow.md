@@ -101,18 +101,7 @@ executor >  awsbatch (4)
 
 which indicates that workflow processes were run remotely as AWS Batch Jobs and not on the local instance.
 
-Try running some of Nextflow's other demo pipelines:
-
-### rnatoy
-
-A simple RNAseq example
-
-```bash
-cd ~/environment/dedicated
-nextflow run rnatoy
-```
-
-Source: [https://github.com/nextflow-io/rnatoy](https://github.com/nextflow-io/rnatoy)
+Try running another Nextflow demo pipeline:
 
 ### blast-example
 
@@ -266,7 +255,7 @@ cd ~/environment/nextflow-workshop
 # }
 ```
 
-Now try submitting `rnatoy` and `blast-example` workflows to the Batch-squared architecture.
+Now try submitting a `blast-example` workflow to the Batch-squared architecture.
 
 #### Getting workflow logs
 
