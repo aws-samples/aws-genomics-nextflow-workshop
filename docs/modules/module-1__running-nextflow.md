@@ -112,7 +112,7 @@ cd ~/environment/dedicated
 nextflow run rnatoy
 ```
 
-Source: [https://github.com/nextflow-io/rnatoy]()
+Source: [https://github.com/nextflow-io/rnatoy](https://github.com/nextflow-io/rnatoy)
 
 ### blast-example
 
@@ -123,7 +123,7 @@ cd ~/environment/dedicated
 nextflow run blast-example
 ```
 
-Source: [https://github.com/nextflow-io/blast-example]()
+Source: [https://github.com/nextflow-io/blast-example](https://github.com/nextflow-io/blast-example)
 
 !!! info
     A unique feature of Nextflow is that it can run workflows directly from Git repositories. The `hello`, `rnatoy`, and `blast-example` workflows are all public repositories on Github. You can also access private Git repositories hosted on Gitlab, BitBucket, and Gitea. See [Nextflow's documentation](https://www.nextflow.io/docs/latest/sharing.html) for more info.
