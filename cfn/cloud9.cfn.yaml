@@ -72,8 +72,7 @@ Resources:
     Properties: 
       Name: genomics-workflows
       Description: Development environment for building genomics workflows with Nextflow
-      InstanceType: m4.large
-      AutomaticStopTimeMinutes: 30
+      InstanceType: t2.medium
       OwnerArn:
         Fn::If:
           - UseAssumedRole
